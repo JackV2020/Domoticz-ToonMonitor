@@ -1,10 +1,11 @@
 This plugin was developed on Raspberry Pi Buster and may work on other platforms.
 
-The plugin creates 3 buttons to :
+The plugin creates 4 buttons to :
 
  - Restart Toon
  - Restart Toon GUI
- - Start/Stop vnc ( Toon 1 only since Toon 2 does not support vnc )
+ - Start/Stop vnc ( Toon 1 full and Toon 2 view-only support )
+ - Enable/Disable debug logging to /var/log/qt
  
  and 12 sensors for 
 
@@ -29,13 +30,13 @@ The plugin also creates a room with the name you enter for your hardware item.
 
 Updates are done every minute.
 
-To install the plugin you need to get the contents of the zip file ToonMonitor.zip
+To install or update the plugin you need to get the contents of the zip file ToonMonitor.zip
 
 On a Raspberry Pi you could :
 
-Start a terminal and go to your plugins folder and the next command will download a zip file, unpack and remove the zipfile : 
+Start a terminal and go to your plugins folder and the next wget command will download a zip file, unpack and remove the zipfile : 
 
-    wget https://raw.githubusercontent.com/JackV2020/Domoticz-ToonMonitor/main/ToonMonitor.zip && unzip ToonMonitor.zip && rm ToonMonitor.zip
+ ....../plugins$ wget https://raw.githubusercontent.com/JackV2020/Domoticz-ToonMonitor/main/ToonMonitor.zip -O ToonMonitor.zip && unzip -o ToonMonitor.zip && rm ToonMonitor.zip
 
 After this you need to enable access to Toon and put a reporting script in place.
 
@@ -62,7 +63,7 @@ However, you may want more......
 
 In ToonMonitor.conf you find how to add/remove/change sensors.
 
-In Installing.txt you find also how to install VNC on Toon 1 and SFTP on Toon 2 if you want that.
+In Installing.txt you find also how to install VNC on Toon 1/Toon 2 and SFTP on Toon 2 if you want that.
 VNC Clients known to work are TigerVNC Viewer on Windows and Linux and bVNC Free on Android.
 Other working VNC clients may be available but not all work with Toon 1.
 
