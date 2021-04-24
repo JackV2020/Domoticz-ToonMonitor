@@ -20,13 +20,16 @@ The plugin creates 4 buttons to :
  - free memory
  - network input
  - network output
- - Wifi strength ( Toon 1, I do not know where to get it on a Toon 2 )
+ - Wifi strength
 
 The buttons are protected by a password you enter in Domoticz in :
 
  - > Setup > Settings > Light/Switch Protection: Password.
 
 The plugin also creates a room with the name you enter for your hardware item.
+
+By going to the Switches menu and editing the switches you can remove the protection.
+After a restart of the plugin the protection will not change.
 
 Updates are done every minute.
 
@@ -65,6 +68,6 @@ In ToonMonitor.conf you find how to add/remove/change sensors.
 
 In Installing.txt you find also how to install VNC on Toon 1/Toon 2 and SFTP on Toon 2 if you want that.
 VNC Clients known to work are TigerVNC Viewer on Windows and Linux and bVNC Free on Android.
-Other working VNC clients may be available but not all work with Toon 1.
+Other working VNC clients may be available but not all work with Toon.
 
 Thanks for reading and enjoy.
