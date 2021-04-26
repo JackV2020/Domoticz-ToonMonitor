@@ -1,0 +1,782 @@
+
+"""
+<plugin key="JacksToonMonitor" name="Jacks Toon Monitor" author="Jack Veraart" version="1.1">
+    <description>
+        <font size="4" color="white">Toon Monitor </font><font color="white">...Notes...</font>
+        <ul style="list-style-type:square">
+            <li><font color="cyan"><b>FIRST follow the instructions in the file Installing.txt to implement access to Toon and enable reporting.</b></font></li>
+            <li><font color="yellow">If you want vnc on Toon 1/2 (vnc on Toon 2 is view-only) or add sftp on Toon 2 you may use additional instructions in Installing.txt.</font></li>
+            <li><font color="yellow">This plugin has buttons for 'Restart Toon' , 'Restart GUI', 'Start/Stop vnc' and 'Enable/Disable logging'.</font></li>
+            <li><font color="yellow">These are protected with the password you enter in > Setup > Settings > Light/Switch Protection: Password.</font></li>
+            <li><font color="yellow">When enabled, logging goes to /var/log/qt which will be removed after a reboot or by you manually.</font></li>
+            <li><font color="yellow">In your Toon app you can write to the log using : console.log("MyApp: this line is a test" + variable)</font></li>
+            <li><font color="yellow">Below you specify the Toon IP address. Find it on your Toon in > Settings > Internet.</font></li>
+            <li><font color="yellow">A room can be created with the name you give in the Name field above.</font></li>
+            <li><font color="yellow">The room creation needs admin rights so if you have an admin account and want a room you need to enter admin account details below.</font></li>
+            <li><font color="cyan">Remember, after startup you can use notifications on the Utility Devices to be informed by mail etc. when the values like uptime are below/above certain values.</font></li>
+            <li><font color="cyan">You can also use timers to control the switches. Maybe at midnight : disable logging followed by a reboot of your Toon.</font></li>
+            <li><font color="yellow">To develop your own plugin...check this web site... <a href="https://www.domoticz.com/wiki/Developing_a_Python_plugin" ><font color="cyan">Developing_a_Python_plugin</font></a></font></li>
+        </ul>
+    </description>
+    <params>
+        <param field="Address" label="Toon IP Address." width="120px" default="192.168.2.19"/>
+
+        <param field="Username" label="Username."       width="120px" default="admin"/>
+
+        <param field="Password" label="Password."       width="120px" default="secret" password="true"/>
+
+        <param field="Mode6" label="Debug."             width="75px">
+            <options>
+                <option label="True"  value="Debug"/>
+                <option label="False" value="Normal"    default="true"/>
+            </options>
+        </param>
+    </params>
+</plugin>
+"""
+import Domoticz
+
+# Prepare some global variables
+
+StartupOK=0
+
+HeartbeatInterval=10  # 10 seconds is limit to avoid broken thread notifications
+HeartbeatCounterMax = 6 # Only every 'HeartbeatCounterMax * HeartbeatInterval' seconds there is a real update.
+HeartbeatCounter = HeartbeatCounterMax
+
+HomeFolder=''   # plugin finds right value
+IPPort=0        # plugin finds right value
+
+ToonAddress=''
+Username=''     # plugin finds right value
+Password=''     # plugin finds right value
+RoomName=''     # plugin uses the name you gave to your hardware
+
+Button_Type='0'  # 0: Buttons 1: Drop Down menu
+
+DeviceLibrary={}
+
+RestartToonId=0
+RestartGUIId=0
+VNCId=0
+LogId=0
+
+RestartToonName='Toon Restart'
+RestartGUIName='Toon Restart GUI'
+VNCName='x11vnc'
+LogName='Log to /var/log/qt'
+
+class BasePlugin:
+    enabled = False
+    def __init__(self):
+        #self.var = 123
+        return
+
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    def onStart(self):
+
+        global StartupOK
+        
+        global HeartbeatInterval
+        global HomeFolder
+        global Username
+        global Password
+        global RoomName
+        global ToonAddress
+
+        global LocalHostInfo
+
+        self.pollinterval = HeartbeatInterval  #Time in seconds between two polls
+
+        if Parameters["Mode6"] == 'Debug':
+            self.debug = True
+            Domoticz.Debugging(1)
+            DumpConfigToLog()
+        else:
+            Domoticz.Debugging(0)
+
+        Domoticz.Log("onStart called")
+                
+        try:
+#
+# Set some globals variables to right values
+#            
+            ToonAddress     =str(Parameters["Address"])
+
+            HomeFolder      =str(Parameters["HomeFolder"])
+            Username        =str(Parameters["Username"])
+            Password        =str(Parameters["Password"])
+            RoomName        =str(Parameters['Name'])
+
+            MyIPPort        =GetDomoticzPort()            
+
+            LocalHostInfo='http://'+Username+':'+Password+'@localhost:'+MyIPPort
+
+            ImportImages()
+
+# Create devices as configured in ToonMonitor.conf
+
+            StartupOK = CreateDevices()
+            
+            if StartupOK == 1:
+                
+                Domoticz.Log('onStartup OK')
+
+                Domoticz.Heartbeat(HeartbeatInterval)
+
+            else:
+                
+                Domoticz.Log('ERROR starting up')
+            
+        except:
+
+            StartupOK = 0
+
+            Domoticz.Log('ERROR starting up')
+
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    def onStop(self):
+        Domoticz.Log("onStop called")
+
+    def onConnect(self, Connection, Status, Description):
+        Domoticz.Log("onConnect called")
+
+    def onMessage(self, Connection, Data):
+        Domoticz.Log("onMessage called")
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    def onCommand(self, Unit, Command, Level, Hue):
+
+        import subprocess
+
+        Domoticz.Log("onCommand called " + str(Unit) + "  " + str(RestartToonId))
+
+        if Unit == RestartToonId:
+            command='/usr/bin/ssh  -o ConnectionAttempts=3 -o ConnectTimeout=3 -o BatchMode=yes ' + ToonAddress + ' /sbin/init 6'
+            Domoticz.Log(command)
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+
+        if Unit == RestartGUIId:
+            command='/usr/bin/ssh  -o ConnectionAttempts=3 -o ConnectTimeout=3 -o BatchMode=yes ' + ToonAddress + ' /usr/bin/killall qt-gui'
+            Domoticz.Log(command)
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+
+        if Unit == VNCId and Level == 10 :
+            command='/usr/bin/ssh  -o ConnectionAttempts=3 -o ConnectTimeout=3 -o BatchMode=yes ' + ToonAddress + ' "if uname -a | grep armv5 ; then /usr/bin/x11vnc ; else x11vnc -forever -shared -rawfb map:/dev/fb0@1024x600x32 -usepw -pipeinput UINPUT:touch,touch_always=1,abs,pressure=128,direct_abs=/dev/input/event0,direct_btn=/dev/input/event0,direct_rel=/devinput/event0,direct_key=/dev/input/event0,nouinput ; fi"'
+            Domoticz.Log(command)
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            Devices[Unit].Update(  nValue=0, sValue=str(Level))
+
+        if Unit == VNCId and Level == 20 :
+            command='/usr/bin/ssh  -o ConnectionAttempts=3 -o ConnectTimeout=3 -o BatchMode=yes ' + ToonAddress + ' "if uname -a | grep armv5 ; then /usr/bin/killall x11vnc-bin ; else /usr/bin/killall x11vnc ; fi"'
+            Domoticz.Log(command)
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            Devices[Unit].Update(  nValue=0, sValue=str(Level))
+
+
+        if Unit == LogId and Level == 10 :
+            command='/usr/bin/ssh  -o ConnectionAttempts=3 -o ConnectTimeout=3 -o BatchMode=yes ' + ToonAddress + ' "sed -i ' + chr(39) + 's#startqt >/dev/null#startqt >/var/log/qt#' + chr(39) + ' /etc/inittab ; /sbin/init q ; /usr/bin/killall qt-gui"'
+            Domoticz.Log(command)
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            Devices[Unit].Update(  nValue=0, sValue=str(Level))
+
+        if Unit == LogId and Level == 20 :
+            command='/usr/bin/ssh  -o ConnectionAttempts=3 -o ConnectTimeout=3 -o BatchMode=yes ' + ToonAddress + ' "sed -i ' + chr(39) + 's#startqt >/var/log/qt#startqt >/dev/null#' + chr(39) + ' /etc/inittab ; /sbin/init q ; /usr/bin/killall qt-gui"'
+            Domoticz.Log(command)
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            Devices[Unit].Update(  nValue=0, sValue=str(Level))
+
+
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+        
+    def onNotification(self, Name, Subject, Text, Status, Priority, Sound, ImageFile):
+        Domoticz.Log("Notification: " + Name + "," + Subject + "," + Text + "," + Status + "," + str(Priority) + "," + Sound + "," + ImageFile)
+
+    def onDisconnect(self, Connection):
+        Domoticz.Log("onDisconnect called")
+            
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    def onHeartbeat(self):
+
+        global HeartbeatCounter
+        
+        if StartupOK == 1 :
+                        
+#            Domoticz.Log("onHeartbeat called Hearbeat: " + str(HeartbeatCounter))
+
+            if HeartbeatCounter == HeartbeatCounterMax:
+
+                ToonValues = {}
+                ToonValues = GetValues()
+
+                for field in ToonValues :
+                    UpdateValue = ToonValues[field]
+                    
+                    for Device in DeviceLibrary :
+                        if ( field == str(DeviceLibrary[Device]['Field']) ) :
+                            UpdateUnit = int(DeviceLibrary[Device]['Unit'])
+
+                            Devices[UpdateUnit].Update(  nValue=0, sValue=UpdateValue)
+                    
+                HeartbeatCounter = 0
+
+            else:
+                HeartbeatCounter = HeartbeatCounter + 1
+
+            
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+
+global _plugin
+_plugin = BasePlugin()
+
+def onStart():
+    global _plugin
+    _plugin.onStart()
+
+def onStop():
+    global _plugin
+    _plugin.onStop()
+
+def onConnect(Connection, Status, Description):
+    global _plugin
+    _plugin.onConnect(Connection, Status, Description)
+
+def onMessage(Connection, Data):
+    global _plugin
+    _plugin.onMessage(Connection, Data)
+
+def onCommand(Unit, Command, Level, Hue):
+    global _plugin
+    _plugin.onCommand(Unit, Command, Level, Hue)
+
+def onNotification(Name, Subject, Text, Status, Priority, Sound, ImageFile):
+    global _plugin
+    _plugin.onNotification(Name, Subject, Text, Status, Priority, Sound, ImageFile)
+
+def onDisconnect(Connection):
+    global _plugin
+    _plugin.onDisconnect(Connection)
+
+def onHeartbeat():
+    global _plugin
+    _plugin.onHeartbeat()
+
+    # Generic helper functions
+def DumpConfigToLog():
+    for x in Parameters:
+        if Parameters[x] != "":
+            Domoticz.Debug( "'" + x + "':'" + str(Parameters[x]) + "'")
+    Domoticz.Debug("Device count: " + str(len(Devices)))
+    for x in Devices:
+        Domoticz.Debug("Device:           " + str(x) + " - " + str(Devices[x]))
+        Domoticz.Debug("Device ID:       '" + str(Devices[x].ID) + "'")
+        Domoticz.Debug("Device Name:     '" + Devices[x].Name + "'")
+        Domoticz.Debug("Device nValue:    " + str(Devices[x].nValue))
+        Domoticz.Debug("Device sValue:   '" + Devices[x].sValue + "'")
+        Domoticz.Debug("Device LastLevel: " + str(Devices[x].LastLevel))
+    return
+    
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------  Image Management Routines  -----------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+
+def GetDomoticzPort():
+#
+# A friend of me renamed domoticz and changed the IP ports so.......
+#
+    global IPPort
+    
+    pathpart=Parameters['HomeFolder'].split('/')[3]
+    searchfile = open("/etc/init.d/"+pathpart+".sh", "r")
+    for line in searchfile:
+        if ("-www" in line) and (line[0:11]=='DAEMON_ARGS'): 
+            IPPort=str(line.split(' ')[2].split('"')[0])
+    searchfile.close()
+    Domoticz.Debug('######### GetDomoticzPort looked in: '+"/etc/init.d/"+pathpart+".sh"+' and found port: '+IPPort)
+    
+    return IPPort
+
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+
+def GetImageDictionary(HostInfo):
+#
+# HostInfo : http(s)://user:pwd@somehost.somewhere:port
+#
+    import json
+    import requests
+
+    try:
+        mydict={}
+
+        url=HostInfo.split(':')[0]+'://'+HostInfo.split('@')[1]+'/json.htm?type=custom_light_icons'
+        username=HostInfo.split(':')[1][2:]
+        password=HostInfo.split(':')[2].split('@')[0]
+
+#        Domoticz.Log('....'+url+'....'+username+'....'+password+'....')
+
+        response=requests.get(url, auth=(username, password))
+        data = json.loads(response.text)
+        for Item in data['result']:
+            mydict[str(Item['imageSrc'])]=int(Item['idx'])
+
+    except:
+        mydict={}
+
+#    Domoticz.Log(str(mydict))
+    
+    return mydict
+
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+
+def ImportImages():
+#
+# Import ImagesToImport if not already loaded
+#
+    import glob
+
+    global ImageDictionary
+
+    ImageDictionary=GetImageDictionary(LocalHostInfo)
+    
+    if ImageDictionary == {}:
+        Domoticz.Log("ERROR I can not access the image library. Please modify the hardware setup to have the right username and password.")      
+    else:
+
+        for zipfile in glob.glob(HomeFolder+"CustomIcons/*.zip"):
+            importfile=zipfile.replace(HomeFolder,'')
+            try:
+                Domoticz.Image(importfile).Create()
+                Domoticz.Debug("Imported/Updated icons from "  + importfile)
+            except:
+                Domoticz.Log("ERROR can not import icons from "  + importfile)
+
+        ImageDictionary=GetImageDictionary(LocalHostInfo)
+
+        Domoticz.Debug('ImportImages: '+str(ImageDictionary))
+         
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+# ----------------------------------------------------  Device Creation Routines  ------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+
+def CreateDevices():
+
+    global DeviceLibrary
+    global RestartToonId
+    global RestartGUIId
+    global VNCId
+    global LogId
+
+    DeviceLibrary={}
+    Name=''
+    Image=''
+    Field=''
+    Units=''
+    Description=''
+    MyStatus=1
+    ConfigFile='ToonMonitor.conf'
+    
+    Recreate = False
+
+    try:
+        
+        TheConfigFile=open(HomeFolder+ConfigFile, "r")
+        TheConfigFile.close
+        for Line in TheConfigFile:
+
+#            Domoticz.Log(str(Line))
+
+            if Line[0] not in ['#', ' ', '\t', '\n' ] and Line.replace(' ','').replace('\t','') != '\n':    # skip comments and empty lines
+
+                
+                Line=Line.replace('\n','')                  # remove EOL
+
+                if Line.split('=')[0] == 'Name':
+                    Name = Line.split('=')[1]
+                elif Line.split('=')[0] == 'Description':
+                    Description = Line.split('=')[1]
+                elif Line.split('=')[0] == 'Image':
+                    Image = Line.split('=')[1]
+                elif Line.split('=')[0] == 'Field':
+                    Field = Line.split('=')[1]
+                elif Line.split('=')[0] == 'Units':
+                    Units = Line.split('=')[1]
+                elif Line.split('=')[0] == 'EndDevice':
+                    DeviceEntry={}
+                    DeviceEntry['Name']   = Name
+                    DeviceEntry['Description']   = Description
+                    DeviceEntry['Image']  = Image
+                    DeviceEntry['Field']   = Field
+                    DeviceEntry['Units']   = Units
+                    DeviceEntry['Unit']   = -1
+                    DeviceLibrary[Name]   = DeviceEntry
+#                    Domoticz.Log("Device: "+str(DeviceEntry))
+                else:
+                    Domoticz.Log('Error Line: '+Line)
+                    MyStatus=-1
+#        Domoticz.Log("Library: "+str(DeviceLibrary))
+    except:
+        MyStatus=-1
+        Domoticz.Log('Error opening config file: '+HomeFolder+ConfigFile)
+
+    if MyStatus == 1:
+
+# --------- start delete loop for removed / renamed devices
+
+        DeleteOne=1
+        while DeleteOne == 1: # My implementation of repeat until, make sure to get into the loop and immediately make sure to get out of it
+            DeleteOne = 0
+            for Unit in Devices: # inner loop to find what to delete
+                if not Devices[Unit].Name in DeviceLibrary and not Devices[Unit].Name in [ RestartToonName, RestartGUIName, VNCName, LogName] :
+                    DeleteOne = 1                                               # stay in the loop because we may have to do our thing again
+                    UnitToDelete = Unit
+                    Item=Devices[Unit].Name
+            if DeleteOne == 1: # out of the inner loop it is safe to delete
+                Domoticz.Log('.....')
+                Domoticz.Log('.....Delete  my own device:  **'+Item+'**  Unit: **'+str(UnitToDelete)+'**')
+                Devices[UnitToDelete].Delete()
+                Domoticz.Log('.....Deleted my own device:  **'+Item+'**  Unit: **'+str(UnitToDelete)+'**')
+
+# ------- end delete loop
+
+# ------- check which devices already exist by updating the unit field
+        
+        for Unit in Devices:
+            if Devices[Unit].Name in DeviceLibrary:
+                DeviceLibrary[Devices[Unit].Name]['Unit'] = Unit
+
+# ------- make sure all devices from the config file are there
+    
+        for Device in DeviceLibrary:
+
+            DeviceName=DeviceLibrary[Device]['Name']
+            DeviceUnit=DeviceLibrary[Device]['Unit']
+            DeviceUnits=DeviceLibrary[Device]['Units']
+            DeviceImage=DeviceLibrary[Device]['Image']
+            DeviceDescription=DeviceLibrary[Device]['Description']
+
+            deviceoptions={}
+            deviceoptions['Custom']="1;"+DeviceUnits
+
+            
+            if DeviceUnit == -1:
+                Domoticz.Log('Need to create '+str(Device))
+                DeviceUnit = 1
+                while DeviceUnit in Devices:
+                    DeviceUnit = DeviceUnit + 1
+                DeviceLibrary[Device]['Unit'] = DeviceUnit
+
+#
+# Whenever a new device is added we need to recreate the room so devices in the room are in the same order as in the config file.
+#
+                Recreate = True
+
+                Domoticz.Device(Name=DeviceName, Unit=DeviceUnit, TypeName="Custom", Used=1, Options=deviceoptions, Image=ImageDictionary[DeviceImage], Description=DeviceDescription).Create()
+
+                nValue=Devices[DeviceUnit].nValue
+                sValue=Devices[DeviceUnit].sValue
+#
+# After creation, need to force right name
+#
+                Devices[DeviceUnit].Update(nValue=nValue, sValue=sValue, Name=DeviceName)
+            else:
+#
+# Something in config may have changed
+#
+                if  (Devices[DeviceUnit].Description != DeviceDescription) or ( Devices[DeviceUnit].Options != deviceoptions) or ( Devices[DeviceUnit].Image !=ImageDictionary[DeviceImage]) :
+                    Recreate = True
+                    Domoticz.Log('Update config for: '+Devices[DeviceUnit].Name)
+                    nValue=Devices[DeviceUnit].nValue
+                    sValue=Devices[DeviceUnit].sValue
+                    Devices[DeviceUnit].Update(nValue=nValue, sValue=sValue, Options=deviceoptions, Image=ImageDictionary[DeviceImage], Description=DeviceDescription)
+#
+# Create Restart Toon Button
+#
+        for Device in Devices:
+            if Devices[Device].Name == RestartToonName :
+                RestartToonId=Device
+
+        if RestartToonId == 0:
+            DeviceUnit = 1
+            while DeviceUnit in Devices:
+                DeviceUnit = DeviceUnit + 1
+            RestartToonId=DeviceUnit
+            Domoticz.Log('Create Restart Toon'+str(RestartToonId))
+
+            Options ={}
+            Options = {'LevelActions': '|',
+                    'LevelNames': '|Restart Toon' ,
+                    'LevelOffHidden': 'true',
+                    'SelectorStyle': '0'}
+            
+            Domoticz.Device(Name=RestartToonName, Unit=RestartToonId, TypeName="Selector Switch", Switchtype=18, Image=ImageDictionary['Toon'], Options=Options, Used=1,Description='Restart Toon').Create()
+            nValue=Devices[RestartToonId].nValue
+            sValue=Devices[RestartToonId].sValue
+#
+# After creation, need to force right name and protection, ( after creation only so user changes are kept )
+#
+            Devices[RestartToonId].Update(nValue=nValue, sValue=sValue, Name=RestartToonName)
+
+            DeviceProtection(LocalHostInfo,Devices[RestartToonId].ID,'yes')
+
+#
+# Create Restart GUI Button
+#
+
+        for Device in Devices:
+            if Devices[Device].Name == RestartGUIName :
+                RestartGUIId=Device
+
+        if RestartGUIId == 0:
+            DeviceUnit = 1
+            while DeviceUnit in Devices:
+                DeviceUnit = DeviceUnit + 1
+            RestartGUIId=DeviceUnit
+            Domoticz.Log('Create Restart GUI')
+
+            Options = {'LevelActions': '|',
+                    'LevelNames': '|Restart GUI' ,
+                    'LevelOffHidden': 'true',
+                    'SelectorStyle': '0'}
+            
+            Domoticz.Device(Name=RestartGUIName, Unit=RestartGUIId, TypeName="Selector Switch", Switchtype=18, Image=ImageDictionary['Toon'], Options=Options, Used=1,Description='Restart GUI').Create()
+            nValue=Devices[RestartGUIId].nValue
+            sValue=Devices[RestartGUIId].sValue
+#
+# After creation, need to force right name and protection, ( after creation only so user changes are kept )
+#
+            Devices[RestartGUIId].Update(nValue=nValue, sValue=sValue, Name=RestartGUIName)
+
+            DeviceProtection(LocalHostInfo,Devices[RestartGUIId].ID ,'yes')
+
+#
+# Create Restart VNC Button
+#
+        for Device in Devices:
+            if Devices[Device].Name == VNCName :
+                VNCId=Device
+
+        if VNCId == 0:
+            DeviceUnit = 1
+            while DeviceUnit in Devices:
+                DeviceUnit = DeviceUnit + 1
+            VNCId=DeviceUnit
+            Domoticz.Log('Create VNC')
+
+            Options = {'LevelActions': '||',
+                    'LevelNames': '|Start VNC|Stop VNC' ,
+                    'LevelOffHidden': 'true',
+                    'SelectorStyle': '0'}
+            
+            Domoticz.Device(Name=VNCName, Unit=VNCId, TypeName="Selector Switch", Switchtype=18, Image=ImageDictionary['Toon'], Options=Options, Used=1,Description='Start / Stop VNC').Create()
+            nValue=Devices[VNCId].nValue
+            sValue=Devices[VNCId].sValue
+#
+# After creation, need to force right name and protection, ( after creation only so user changes are kept )
+#
+            Devices[VNCId].Update(nValue=nValue, sValue=sValue, Name=VNCName)
+
+            DeviceProtection(LocalHostInfo,Devices[VNCId].ID ,'yes')
+
+#
+# Create Log Button
+#
+        for Device in Devices:
+            if Devices[Device].Name == LogName :
+                LogId=Device
+
+        if LogId == 0:
+            DeviceUnit = 1
+            while DeviceUnit in Devices:
+                DeviceUnit = DeviceUnit + 1
+            LogId=DeviceUnit
+
+            Domoticz.Log('Create Log')
+
+            Options = {'LevelActions': '||',
+                    'LevelNames': '|Enable Log|Disable Log' ,
+                    'LevelOffHidden': 'true',
+                    'SelectorStyle': '0'}
+            
+            Domoticz.Device(Name=LogName, Unit=LogId, TypeName="Selector Switch", Switchtype=18, Image=ImageDictionary['Toon'], Options=Options, Used=1,Description='Start / Stop Log').Create()
+            nValue=Devices[LogId].nValue
+            sValue=Devices[LogId].sValue
+#
+# After creation, need to force right name and protection, ( after creation only so user changes are kept )
+#
+            Devices[LogId].Update(nValue=nValue, sValue=sValue, Name=LogName)
+
+            DeviceProtection(LocalHostInfo,Devices[LogId].ID ,'yes')
+
+        Domoticz.Log('Created Log')
+
+#
+# (Re-)Create Room
+#
+        RoomIdx=CreateRoom(LocalHostInfo, RoomName, Recreate)
+
+#
+# Add all items to Room if not already in
+#
+        for Device in DeviceLibrary:
+
+            AddToRoom(LocalHostInfo,RoomIdx,Devices[DeviceLibrary[Device]['Unit']].ID)
+
+        AddToRoom(LocalHostInfo,RoomIdx,Devices[RestartToonId].ID)
+        AddToRoom(LocalHostInfo,RoomIdx,Devices[RestartGUIId].ID)
+        AddToRoom(LocalHostInfo,RoomIdx,Devices[VNCId].ID)
+        AddToRoom(LocalHostInfo,RoomIdx,Devices[LogId].ID)
+
+    return MyStatus
+    
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+
+def CreateRoom(HostInfo,RoomName, Recreate):
+#
+# HostInfo : http(s)://user:pwd@somehost.somewhere:port
+#
+    import json
+    import requests
+    
+    idx=0
+
+    try:
+
+        username=HostInfo.split(':')[1][2:]
+        password=HostInfo.split(':')[2].split('@')[0]
+
+        Domoticz.Debug('Find Room')
+        
+        url=HostInfo.split(':')[0]+'://'+HostInfo.split('@')[1]+'/json.htm?type=plans&order=name&used=true'
+        response=requests.get(url, auth=(username, password))
+        data = json.loads(response.text)
+        if 'result' in data.keys():
+            for Item in data['result']:
+                if str(Item['Name']) == RoomName:
+                    idx=int(Item['idx'])
+                    
+
+        if (idx != 0) and Recreate :
+            url=HostInfo.split(':')[0]+'://'+HostInfo.split('@')[1]+'/json.htm?idx='+str(idx)+'&param=deleteplan&type=command'
+            Domoticz.Log('Delete Room '+url)
+            response=requests.get(url, auth=(username, password))
+            idx = 0
+        
+        if idx == 0 :
+            
+            url=HostInfo.split(':')[0]+'://'+HostInfo.split('@')[1]+'/json.htm?name='+RoomName+'&param=addplan&type=command'
+            Domoticz.Log('Create Room '+url)
+            response=requests.get(url, auth=(username, password))
+            data = json.loads(response.text)
+            idx=int(data['idx'])
+
+    except:
+        idx=-1
+
+ #   Domoticz.Log(str(idx))
+    
+    return idx
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+def AddToRoom(HostInfo,RoomIDX,ItemIDX):
+#
+# HostInfo : http(s)://user:pwd@somehost.somewhere:port
+#
+    import json
+    import requests
+    
+    idx=0
+
+    try:
+
+        username=HostInfo.split(':')[1][2:]
+        password=HostInfo.split(':')[2].split('@')[0]
+
+        Domoticz.Debug('Add Item To Room')
+        
+        url=HostInfo.split(':')[0]+'://'+HostInfo.split('@')[1]+'/json.htm?activeidx='+str(ItemIDX)+'&activetype=0&idx='+str(RoomIDX)+'&param=addplanactivedevice&type=command'
+#        Domoticz.Log(url)
+        response=requests.get(url, auth=(username, password))
+        data = json.loads(response.text)
+#        Domoticz.Log(str(data))
+
+    except:
+        idx=-1
+
+ #   Domoticz.Log(str(idx))
+    
+    return idx
+
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+def GetValues():
+
+    global DeviceLibrary
+    
+    import subprocess
+
+    import time
+
+    command='/usr/bin/ssh  -o ConnectionAttempts=3 -o ConnectTimeout=3 -o BatchMode=yes ' + ToonAddress + ' ./toon-performance.sh'
+    Domoticz.Debug(command)
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+
+    timeouts=0
+
+    result = ''
+    mydict = {}
+    while timeouts < 10:
+        p_status = process.wait()
+        output = process.stdout.readline()
+#        Domoticz.Log('Output: '+str(output))
+        if output == '' and process.poll() is not None:
+            break
+
+        if output:                        
+            line=str(output.strip())[2:-1]
+            field=line.split(' ')[0]
+            value=line.split(' ')[1]
+            mydict[field] = value
+#            Domoticz.Log(line)
+        else:
+            time.sleep(0.2)
+            timeouts=timeouts+1
+
+#    Domoticz.Log(str(mydict))
+
+    return mydict
+        
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+def DeviceProtection(HostInfo,ItemIDX,Protected):
+#
+# HostInfo : http(s)://user:pwd@somehost.somewhere:port
+#
+    import json
+    import requests
+    
+    idx=0
+
+    try:
+
+        username=HostInfo.split(':')[1][2:]
+        password=HostInfo.split(':')[2].split('@')[0]
+
+        Domoticz.Log('Device Protection')
+        
+        if (Protected == 'yes'):
+            url=HostInfo.split(':')[0]+'://'+HostInfo.split('@')[1]+'/json.htm?type=setused&protected=true&used=true&idx='+str(ItemIDX)
+        else:
+            url=HostInfo.split(':')[0]+'://'+HostInfo.split('@')[1]+'/json.htm?type=setused&protected=false&used=true&idx='+str(ItemIDX)
+#        Domoticz.Log(url)
+        response=requests.get(url, auth=(username, password))
+        data = json.loads(response.text)
+#        Domoticz.Log(str(data))
+
+    except:
+        idx=-1
+
+ #   Domoticz.Log(str(idx))
+    
+    return idx
+    
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
