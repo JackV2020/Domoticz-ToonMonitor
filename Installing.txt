@@ -47,7 +47,7 @@
 --- 2) Copy reporting script to Toon.
 
   A) Copy file to Toon ( change ToonIPAddress to your Toon IP address ) :
-        sudo rcp /home/pi/domoticz/plugins/ToonMonitor/toon-performance.sh root@ToonIPAddress:toon-performance.sh
+        sudo rcp /home/pi/domoticz/plugins/Domoticz-ToonMonitor/toon-performance.sh root@ToonIPAddress:toon-performance.sh
   B) make script executable :
         sudo ssh root@ToonIPAddress chmod +x toon-performance.sh
   C) test
