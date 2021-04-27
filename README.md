@@ -1,4 +1,10 @@
-This plugin was developed on Raspberry Pi Buster and may work on other platforms.
+Toon is Eneco's smart thermostat which is mounted on the wall of your living room for example.
+It is connected to your boiler and maybe to your electricity and gas meters and maybe even more.
+It comes with an Eneco subscription for which you pay a fee unless you use a rooted Toon which is perfectly legal to do.
+
+Toon in fact is a little linux computer which you may like to see performance statistics of and developers may like some controls for.
+
+This is why I developed this Domoticz plugin on my Raspberry Pi ( it may work on other platforms also )
 
 The plugin creates 4 buttons to :
 
@@ -62,15 +68,12 @@ You do that on your Domoticz host : ( replace 192.168.2.123 with the address of 
 test the script :
  - ssh root@192.168.2.123 ./toon-performance.sh
 
-The Type name of the plugin is 'Jacks Toon Monitor'.
-
-When you do not like the Type name 'Jacks Toon Monitor' feel free to edit plugin.py and modify it before you actually add your hardware.
-
-Now to get it into Domoticz restart your domoticz like :
+Now to get the plugin into Domoticz restart your domoticz like :
 
     sudo systemctl restart domoticz
 
-After this you can add the hardware and you are all done.
+After this you can add the hardware and you are ready to use it.
+The Type name of the plugin is 'Jacks Toon Monitor'.
 
 However, you may want more......
 
