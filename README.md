@@ -41,13 +41,13 @@ To install the plugin you need to get the contents in your plugin folder :
 
 On a Raspberry Pi you could :
 
-Start a terminal and go to your plugins folder and the next will get it for you : 
+Start a terminal and go to your plugins folder and the next will get it for you into a ToonMonitor folder : 
 
- ....../plugins$ git clone https://github.com/JackV2020/Domoticz-ToonMonitor.git
+ ....../plugins$ git clone https://github.com/JackV2020/Domoticz-ToonMonitor.git ToonMonitor
 
 later when you want to check for updates you go into the folder and issue git pull :
 
- ....../plugins/Domoticz-ToonMonitor$ git pull
+ ....../plugins/ToonMonitor$ git pull
 
 After this you need to enable access to Toon and put a reporting script in place.
 
@@ -57,7 +57,7 @@ You do that on your Domoticz host : ( replace 192.168.2.123 with the address of 
  - ssh-keygen   
     ( and press enter 4 times, no password )
  - ssh-copy-id -i ~/.ssh/id_rsa.pub root@192.168.2.123
- - rcp /home/pi/domoticz/plugins/Domoticz-ToonMonitor/toon-performance.sh root@192.168.2.123:toon-performance.sh
+ - rcp /home/pi/domoticz/plugins/ToonMonitor/toon-performance.sh root@192.168.2.123:toon-performance.sh
  - ssh root@192.168.2.123 chmod +x toon-performance.sh
 test the script :
  - ssh root@192.168.2.123 ./toon-performance.sh
