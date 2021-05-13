@@ -6,14 +6,17 @@ Toon in fact is a little linux computer which you may like to see performance st
 
 This is why I developed this Domoticz plugin on my Raspberry Pi ( it may work on other platforms also )
 
-The plugin creates 4 buttons to :
+The plugin creates 5 buttons to :
 
  - Restart Toon
  - Restart Toon GUI
  - Start/Stop vnc ( Toon 1 full and Toon 2 view-only support )
  - Enable/Disable debug logging to /var/log/qt
+ - Toggle between '4 Tiles + big Heating tile' and '6 Tiles without big Heating tile'
+
+In 6 Tile mode you can still control your heating by an Android app or maybe my Toon Heating app from https://github.com/JackV2020/toonSmallHeating 
  
- and 12 sensors for 
+The plugin has 12 sensors for 
 
  - Toon Uptime
  - GUI Uptime
@@ -41,7 +44,7 @@ Updates are done every minute.
 
 Before installing make sure that the requests module is installed :
 sudo apt-get install python3-requests
-( When already installed it will will skip installation and explain it is already installed )
+( When already installed it will skip installation and explain it is already installed )
 
 To install the plugin you need to get the contents in your plugin folder :
 
@@ -55,7 +58,7 @@ later when you want to check for updates you go into the folder and issue git pu
 
  ....../plugins/ToonMonitor$ git pull
 
-After this you need to enable access to Toon and put a reporting script in place.
+After the first time installation you need to enable access to Toon and put a reporting script in place.
 
 You do that on your Domoticz host : ( replace 192.168.2.123 with the address of your Toon )
 
@@ -68,18 +71,19 @@ You do that on your Domoticz host : ( replace 192.168.2.123 with the address of 
 test the script :
  - ssh root@192.168.2.123 ./toon-performance.sh
 
-Now to get the plugin into Domoticz restart your domoticz like :
+To get the new plugin in Domoticz you restart your domoticz like :
 
     sudo systemctl restart domoticz
 
 After this you can add the hardware and you are ready to use it.
 The Type name of the plugin is 'Jacks Toon Monitor'.
 
-However, you may want more......
+However, you may want more......which is documented in ToonMonitor.conf and Installing.txt
 
 In ToonMonitor.conf you find how to add/remove/change sensors.
+Keep a copy of your changes because an update of the app will overwrite your changes.
 
-In Installing.txt you find also how to install VNC on Toon 1/Toon 2 and SFTP on Toon 2 if you want that.
+In Installing.txt you find how to install VNC on Toon 1/Toon 2 and SFTP on Toon 2 if you want that.
 VNC Clients known to work are TigerVNC Viewer on Windows and Linux and bVNC Free on Android.
 Other working VNC clients may be available but not all work with Toon.
 

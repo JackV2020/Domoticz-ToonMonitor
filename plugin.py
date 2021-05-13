@@ -1,16 +1,24 @@
-
+#
+# version 1.0.0 : initial version
+# version 1.1.0 : added buttons to restart Toon, Gui and start/stop VNC
+# version 1.2.0 : added button to start/stop Logging
+# version 1.3.0 : added button for 4-6 tile mode
+#
 """
-<plugin key="JacksToonMonitor" name="Jacks Toon Monitor" author="Jack Veraart" version="1.1">
+<plugin key="JacksToonMonitor" name="Jacks Toon Monitor" author="Jack Veraart" version="1.3.0">
     <description>
         <font size="4" color="white">Toon Monitor </font><font color="white">...Notes...</font>
         <ul style="list-style-type:square">
-            <li><font color="cyan"><b>FIRST follow the instructions in the file Installing.txt to implement access to Toon and enable reporting.</b></font></li>
-            <li><font color="yellow">If you want vnc on Toon 1/2 (vnc on Toon 2 is view-only) or add sftp on Toon 2 you may use additional instructions in Installing.txt.</font></li>
-            <li><font color="yellow">This plugin has buttons for 'Restart Toon' , 'Restart GUI', 'Start/Stop vnc' and 'Enable/Disable logging'.</font></li>
-            <li><font color="yellow">These are protected with the password you enter in > Setup > Settings > Light/Switch Protection: Password.</font></li>
-            <li><font color="yellow">When enabled, logging goes to /var/log/qt which will be removed after a reboot or by you manually.</font></li>
+            <li><font color="cyan"><b>After reading the text below FIRST follow the instructions in the file Installing.txt to implement access to Toon and enable reporting.</b></font></li>
+            <li><font color="yellow">This plugin has buttons for 'Restart Toon' , 'Restart GUI', 'Start/Stop vnc', 'Enable/Disable logging' and '4 Tile / 6 Tile' mode.</font></li>
+            <li><font color="yellow">The buttons are protected by the password you enter in > Setup > Settings > Light/Switch Protection: Password.</font></li>
+            <li><font color="yellow">When enabled, logging goes to /var/log/qt which will be removed after a reboot or by you manually. Logging stays active after a reboot unless you disable it again.</font></li>
             <li><font color="yellow">In your Toon app you can write to the log using : console.log("MyApp: this line is a test" + variable)</font></li>
-            <li><font color="yellow">Below you specify the Toon IP address. Find it on your Toon in > Settings > Internet.</font></li>
+            <li><font color="yellow">ssh to your Toon and follow your logging by 'tail -f /var/log/qt | grep MyApp'</font></li>
+            <li><font color="yellow">'4 Tile' is standard mode. In '6 Tile' there is no big Heating tile and you need to use an Android app or something else to control your heating.</font></li>
+            <li><font color="yellow">Maybe use my 1 tile heating app for Toon 1/2 from... <a href="https://github.com/JackV2020/toonSmallHeating"><font color="cyan">https://github.com/JackV2020/toonSmallHeating</font></a> ...which may go to the ToonStore.</font></li>
+            <li><font color="cyan">If you want vnc on Toon 1/2 (on Toon 2 vnc is view-only) or add sftp on Toon 2 you may use additional instructions in Installing.txt.</font></li>
+            <li><font color="yellow">Below you specify the Toon IP address. Find it on your Toon : click upper left corner > Instellingen/Settings > Internet.</font></li>
             <li><font color="yellow">A room can be created with the name you give in the Name field above.</font></li>
             <li><font color="yellow">The room creation needs admin rights so if you have an admin account and want a room you need to enter admin account details below.</font></li>
             <li><font color="cyan">Remember, after startup you can use notifications on the Utility Devices to be informed by mail etc. when the values like uptime are below/above certain values.</font></li>
@@ -60,11 +68,13 @@ RestartToonId=0
 RestartGUIId=0
 VNCId=0
 LogId=0
+Mode46Id=0
 
 RestartToonName='Toon Restart'
 RestartGUIName='Toon Restart GUI'
 VNCName='x11vnc'
 LogName='Log to /var/log/qt'
+Mode46Name='Tile Mode'
 
 class BasePlugin:
     enabled = False
@@ -153,41 +163,55 @@ class BasePlugin:
 
         Domoticz.Log("onCommand called " + str(Unit) + "  " + str(RestartToonId))
 
+        command='/usr/bin/ssh  -o ConnectionAttempts=3 -o ConnectTimeout=3 -o BatchMode=yes ' + ToonAddress + ' '
+
         if Unit == RestartToonId:
-            command='/usr/bin/ssh  -o ConnectionAttempts=3 -o ConnectTimeout=3 -o BatchMode=yes ' + ToonAddress + ' /sbin/init 6'
+            command=command + ' /sbin/init 6'
             Domoticz.Log(command)
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 
         if Unit == RestartGUIId:
-            command='/usr/bin/ssh  -o ConnectionAttempts=3 -o ConnectTimeout=3 -o BatchMode=yes ' + ToonAddress + ' /usr/bin/killall qt-gui'
+            command=command + ' /usr/bin/killall qt-gui'
             Domoticz.Log(command)
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
 
         if Unit == VNCId and Level == 10 :
-            command='/usr/bin/ssh  -o ConnectionAttempts=3 -o ConnectTimeout=3 -o BatchMode=yes ' + ToonAddress + ' "if uname -a | grep armv5 ; then /usr/bin/x11vnc ; else x11vnc -forever -shared -rawfb map:/dev/fb0@1024x600x32 -usepw -pipeinput UINPUT:touch,touch_always=1,abs,pressure=128,direct_abs=/dev/input/event0,direct_btn=/dev/input/event0,direct_rel=/devinput/event0,direct_key=/dev/input/event0,nouinput ; fi"'
+            command=command + ' "if uname -a | grep armv5 ; then /usr/bin/x11vnc ; else x11vnc -forever -shared -rawfb map:/dev/fb0@1024x600x32 -usepw -pipeinput UINPUT:touch,touch_always=1,abs,pressure=128,direct_abs=/dev/input/event0,direct_btn=/dev/input/event0,direct_rel=/devinput/event0,direct_key=/dev/input/event0,nouinput ; fi"'
             Domoticz.Log(command)
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             Devices[Unit].Update(  nValue=0, sValue=str(Level))
 
         if Unit == VNCId and Level == 20 :
-            command='/usr/bin/ssh  -o ConnectionAttempts=3 -o ConnectTimeout=3 -o BatchMode=yes ' + ToonAddress + ' "if uname -a | grep armv5 ; then /usr/bin/killall x11vnc-bin ; else /usr/bin/killall x11vnc ; fi"'
+            command=command + ' "if uname -a | grep armv5 ; then /usr/bin/killall x11vnc-bin ; else /usr/bin/killall x11vnc ; fi"'
             Domoticz.Log(command)
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             Devices[Unit].Update(  nValue=0, sValue=str(Level))
 
 
         if Unit == LogId and Level == 10 :
-            command='/usr/bin/ssh  -o ConnectionAttempts=3 -o ConnectTimeout=3 -o BatchMode=yes ' + ToonAddress + ' "sed -i ' + chr(39) + 's#startqt >/dev/null#startqt >/var/log/qt#' + chr(39) + ' /etc/inittab ; /sbin/init q ; /usr/bin/killall qt-gui"'
+            command=command + ' "sed -i ' + chr(39) + 's#startqt >/dev/null#startqt >/var/log/qt#' + chr(39) + ' /etc/inittab ; /sbin/init q ; /usr/bin/killall qt-gui"'
             Domoticz.Log(command)
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             Devices[Unit].Update(  nValue=0, sValue=str(Level))
 
         if Unit == LogId and Level == 20 :
-            command='/usr/bin/ssh  -o ConnectionAttempts=3 -o ConnectTimeout=3 -o BatchMode=yes ' + ToonAddress + ' "sed -i ' + chr(39) + 's#startqt >/var/log/qt#startqt >/dev/null#' + chr(39) + ' /etc/inittab ; /sbin/init q ; /usr/bin/killall qt-gui"'
+            command=command + ' "sed -i ' + chr(39) + 's#startqt >/var/log/qt#startqt >/dev/null#' + chr(39) + ' /etc/inittab ; /sbin/init q ; /usr/bin/killall qt-gui"'
             Domoticz.Log(command)
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             Devices[Unit].Update(  nValue=0, sValue=str(Level))
 
+
+        if Unit == Mode46Id and Level == 10 :
+            command=command + ' "sed -i ' + chr(39) + 's#<feature>noHeating</feature>##' + chr(39) + ' /qmf/config/config_happ_scsync.xml && /sbin/init 6 &"'
+            Domoticz.Log(command)
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            Devices[Unit].Update(  nValue=0, sValue=str(Level))
+
+        if Unit == Mode46Id and Level == 20 :
+            command=command + ' "sed -i ' + chr(39) + 's#<features>#<features><feature>noHeating</feature>#' + chr(39) + ' /qmf/config/config_happ_scsync.xml && /sbin/init 6 &"'
+            Domoticz.Log(command)
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            Devices[Unit].Update(  nValue=0, sValue=str(Level))
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------
         
@@ -368,6 +392,7 @@ def CreateDevices():
     global RestartGUIId
     global VNCId
     global LogId
+    global Mode46Id
 
     DeviceLibrary={}
     Name=''
@@ -429,7 +454,7 @@ def CreateDevices():
         while DeleteOne == 1: # My implementation of repeat until, make sure to get into the loop and immediately make sure to get out of it
             DeleteOne = 0
             for Unit in Devices: # inner loop to find what to delete
-                if not Devices[Unit].Name in DeviceLibrary and not Devices[Unit].Name in [ RestartToonName, RestartGUIName, VNCName, LogName] :
+                if not Devices[Unit].Name in DeviceLibrary and not Devices[Unit].Name in [ RestartToonName, RestartGUIName, VNCName, LogName, Mode46Name] :
                     DeleteOne = 1                                               # stay in the loop because we may have to do our thing again
                     UnitToDelete = Unit
                     Item=Devices[Unit].Name
@@ -503,7 +528,7 @@ def CreateDevices():
             while DeviceUnit in Devices:
                 DeviceUnit = DeviceUnit + 1
             RestartToonId=DeviceUnit
-            Domoticz.Log('Create Restart Toon'+str(RestartToonId))
+            Domoticz.Log('Create Restart Toon')
 
             Options ={}
             Options = {'LevelActions': '|',
@@ -521,6 +546,7 @@ def CreateDevices():
 
             DeviceProtection(LocalHostInfo,Devices[RestartToonId].ID,'yes')
 
+            Domoticz.Log('Create Restart Toon')
 #
 # Create Restart GUI Button
 #
@@ -551,6 +577,8 @@ def CreateDevices():
 
             DeviceProtection(LocalHostInfo,Devices[RestartGUIId].ID ,'yes')
 
+            Domoticz.Log('Created Restart GUI')
+
 #
 # Create Restart VNC Button
 #
@@ -579,6 +607,8 @@ def CreateDevices():
             Devices[VNCId].Update(nValue=nValue, sValue=sValue, Name=VNCName)
 
             DeviceProtection(LocalHostInfo,Devices[VNCId].ID ,'yes')
+
+            Domoticz.Log('Created VNC')
 
 #
 # Create Log Button
@@ -610,7 +640,38 @@ def CreateDevices():
 
             DeviceProtection(LocalHostInfo,Devices[LogId].ID ,'yes')
 
-        Domoticz.Log('Created Log')
+            Domoticz.Log('Created Log')
+#
+# Create Mode Button
+#
+        for Device in Devices:
+            if Devices[Device].Name == Mode46Name :
+                Mode46Id=Device
+
+        if Mode46Id == 0:
+            DeviceUnit = 1
+            while DeviceUnit in Devices:
+                DeviceUnit = DeviceUnit + 1
+            Mode46Id=DeviceUnit
+
+            Domoticz.Log('Create Mode')
+
+            Options = {'LevelActions': '||',
+                    'LevelNames': '|4 Tiles|6 Tiles' ,
+                    'LevelOffHidden': 'true',
+                    'SelectorStyle': '0'}
+            
+            Domoticz.Device(Name=Mode46Name, Unit=Mode46Id, TypeName="Selector Switch", Switchtype=18, Image=ImageDictionary['Toon'], Options=Options, Used=1,Description='4 Tiles or 6 Tiles on Toon. Read Installing.txt in plugin folder to enable this on Toon itself').Create()
+            nValue=Devices[Mode46Id].nValue
+            sValue=Devices[Mode46Id].sValue
+#
+# After creation, need to force right name and protection, ( after creation only so user changes are kept )
+#
+            Devices[Mode46Id].Update(nValue=nValue, sValue=sValue, Name=Mode46Name)
+
+            DeviceProtection(LocalHostInfo,Devices[Mode46Id].ID ,'yes')
+
+            Domoticz.Log('Created Mode')
 
 #
 # (Re-)Create Room
@@ -628,6 +689,7 @@ def CreateDevices():
         AddToRoom(LocalHostInfo,RoomIdx,Devices[RestartGUIId].ID)
         AddToRoom(LocalHostInfo,RoomIdx,Devices[VNCId].ID)
         AddToRoom(LocalHostInfo,RoomIdx,Devices[LogId].ID)
+        AddToRoom(LocalHostInfo,RoomIdx,Devices[Mode46Id].ID)
 
     return MyStatus
     
