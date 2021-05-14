@@ -3,9 +3,10 @@
 # version 1.1.0 : added buttons to restart Toon, Gui and start/stop VNC
 # version 1.2.0 : added button to start/stop Logging
 # version 1.3.0 : added button for 4-6 tile mode
+# version 1.4.0 : get domoticz http IP port from running process named domoticz (when there is no /etc/init.d/domoticz.sh like on Raspberry Pi)
 #
 """
-<plugin key="JacksToonMonitor" name="Jacks Toon Monitor" author="Jack Veraart" version="1.3.0">
+<plugin key="JacksToonMonitor" name="Jacks Toon Monitor" author="Jack Veraart" version="1.4.0">
     <description>
         <font size="4" color="white">Toon Monitor </font><font color="white">...Notes...</font>
         <ul style="list-style-type:square">
@@ -54,6 +55,7 @@ HeartbeatCounter = HeartbeatCounterMax
 
 HomeFolder=''   # plugin finds right value
 IPPort=0        # plugin finds right value
+IPPort2=0        # plugin finds right value
 
 ToonAddress=''
 Username=''     # plugin finds right value
@@ -159,7 +161,10 @@ class BasePlugin:
 
     def onCommand(self, Unit, Command, Level, Hue):
 
-        import subprocess
+        try:
+            import subprocess
+        except:
+            Domoticz.Log("python3 is missing module subprocess")
 
         Domoticz.Log("onCommand called " + str(Unit) + "  " + str(RestartToonId))
 
@@ -306,20 +311,55 @@ def DumpConfigToLog():
 # --------------------------------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------  Image Management Routines  -----------------------------------------------------------------------
 # --------------------------------------------------------------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+
 
 def GetDomoticzPort():
 #
 # A friend of me renamed domoticz and changed the IP ports so.......
 #
+    try:
+        import subprocess
+    except:
+        Domoticz.Log("python3 is missing module subprocess")
+    try:
+        import time
+    except:
+        Domoticz.Log("python3 is missing module time")
+    
     global IPPort
     
-    pathpart=Parameters['HomeFolder'].split('/')[3]
-    searchfile = open("/etc/init.d/"+pathpart+".sh", "r")
-    for line in searchfile:
-        if ("-www" in line) and (line[0:11]=='DAEMON_ARGS'): 
-            IPPort=str(line.split(' ')[2].split('"')[0])
-    searchfile.close()
-    Domoticz.Debug('######### GetDomoticzPort looked in: '+"/etc/init.d/"+pathpart+".sh"+' and found port: '+IPPort)
+    try:
+        pathpart=Parameters['HomeFolder'].split('/')[3]
+        searchfile = open("/etc/init.d/"+pathpart+".sh", "r")
+        for line in searchfile:
+            if ("-www" in line) and (line[0:11]=='DAEMON_ARGS'): 
+                IPPort=str(line.split(' ')[2].split('"')[0])
+        searchfile.close()
+        Domoticz.Debug('######### GetDomoticzPort looked in: '+"/etc/init.d/"+pathpart+".sh"+' and found port: '+IPPort)
+    except:
+        command='ps -ef | grep domoticz | grep sslwww | grep -v grep | tr -s " "'
+#        Domoticz.Debug(command)
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+
+        timeouts=0
+
+        result = ''
+        while timeouts < 10:
+            p_status = process.wait()
+            output = process.stdout.readline()
+#            Domoticz.Log('Output: '+str(output))
+            if output == '' and process.poll() is not None:
+                break
+            if output:                        
+                IPPort=str(output)
+                IPPort = IPPort[IPPort.find('-www'):]
+                IPPort = IPPort[IPPort.find(' ')+1:]
+                IPPort = IPPort[:IPPort.find(' ')]
+            else:
+                time.sleep(0.2)
+                timeouts=timeouts+1
+        Domoticz.Debug('######### GetDomoticzPort looked at live process and found port: '+IPPort)
     
     return IPPort
 
@@ -329,8 +369,15 @@ def GetImageDictionary(HostInfo):
 #
 # HostInfo : http(s)://user:pwd@somehost.somewhere:port
 #
-    import json
-    import requests
+    try :
+        import json
+    except:
+        Domoticz.Log("python3 is missing module json")
+    
+    try:
+        import requests
+    except:
+        Domoticz.Log("python3 is missing module requests")
 
     try:
         mydict={}
@@ -359,7 +406,10 @@ def ImportImages():
 #
 # Import ImagesToImport if not already loaded
 #
-    import glob
+    try :
+        import glob
+    except:
+        Domoticz.Log("python3 is missing module glob")
 
     global ImageDictionary
 
@@ -373,7 +423,7 @@ def ImportImages():
             importfile=zipfile.replace(HomeFolder,'')
             try:
                 Domoticz.Image(importfile).Create()
-                Domoticz.Debug("Imported/Updated icons from "  + importfile)
+#                Domoticz.Debug("Imported/Updated icons from "  + importfile)
             except:
                 Domoticz.Log("ERROR can not import icons from "  + importfile)
 
@@ -699,8 +749,14 @@ def CreateRoom(HostInfo,RoomName, Recreate):
 #
 # HostInfo : http(s)://user:pwd@somehost.somewhere:port
 #
-    import json
-    import requests
+    try:
+        import json
+    except:
+        Domoticz.Log("python3 is missing module json")
+    try:
+        import requests
+    except:
+        Domoticz.Log("python3 is missing module requests")
     
     idx=0
 
@@ -745,8 +801,14 @@ def AddToRoom(HostInfo,RoomIDX,ItemIDX):
 #
 # HostInfo : http(s)://user:pwd@somehost.somewhere:port
 #
-    import json
-    import requests
+    try:
+        import json
+    except:
+        Domoticz.Log("python3 is missing module json")
+    try:
+        import requests
+    except:
+        Domoticz.Log("python3 is missing module requests")
     
     idx=0
 
@@ -774,11 +836,16 @@ def AddToRoom(HostInfo,RoomIDX,ItemIDX):
 def GetValues():
 
     global DeviceLibrary
+
+    try:
+        import subprocess
+    except:
+        Domoticz.Log("python3 is missing module subprocess")
+    try:
+        import time
+    except:
+        Domoticz.Log("python3 is missing module time")
     
-    import subprocess
-
-    import time
-
     command='/usr/bin/ssh  -o ConnectionAttempts=3 -o ConnectTimeout=3 -o BatchMode=yes ' + ToonAddress + ' ./toon-performance.sh'
     Domoticz.Debug(command)
     process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
@@ -813,8 +880,14 @@ def DeviceProtection(HostInfo,ItemIDX,Protected):
 #
 # HostInfo : http(s)://user:pwd@somehost.somewhere:port
 #
-    import json
-    import requests
+    try:
+        import json
+    except:
+        Domoticz.Log("python3 is missing module json")
+    try:
+        import requests
+    except:
+        Domoticz.Log("python3 is missing module requests")
     
     idx=0
 
