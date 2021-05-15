@@ -6,6 +6,7 @@
 # version 1.4.0 : get domoticz http IP port from running process named domoticz (when there is no /etc/init.d/domoticz.sh like on Raspberry Pi)
 # version 1.5.0 : get temperature and for Toon 2 sensor data from http://Toon2/tsc/sensors ( temperature, humidity, eco2, tvoc and light intensity)
 # version 1.5.1 : previous version did not put temperature in the room for Toon 1
+# version 1.5.2 : Remove Toon 2 sensors when changing Hardware from Toon 2 IP address to Toon 1 IP address
 #
 """
 <plugin key="JacksToonMonitor" name="Jacks Toon Monitor" author="Jack Veraart" version="1.5.0">
@@ -631,10 +632,11 @@ def CreateDevices():
         while DeleteOne == 1: # My implementation of repeat until, make sure to get into the loop and immediately make sure to get out of it
             DeleteOne = 0
             for Unit in Devices: # inner loop to find what to delete
-                if not Devices[Unit].Name in DeviceLibrary and not Devices[Unit].Name in [ RestartToonName, RestartGUIName, VNCName, LogName, Mode46Name, SensorTemperatureName, SensorHumidityName, SensorTvocName, SensorEco2Name, SensorIntensityName] :
-                    DeleteOne = 1                                               # stay in the loop because we may have to do our thing again
-                    UnitToDelete = Unit
-                    Item=Devices[Unit].Name
+                if ( ( Toon2 and ( not Devices[Unit].Name in DeviceLibrary and not Devices[Unit].Name in [ RestartToonName, RestartGUIName, VNCName, LogName, Mode46Name, SensorTemperatureName, SensorHumidityName, SensorTvocName, SensorEco2Name, SensorIntensityName] ) ) 
+                or ( not Toon2 and ( not Devices[Unit].Name in DeviceLibrary and not Devices[Unit].Name in [ RestartToonName, RestartGUIName, VNCName, LogName, Mode46Name, SensorTemperatureName ] ) ) ):
+                        DeleteOne = 1                                               # stay in the loop because we may have to do our thing again
+                        UnitToDelete = Unit
+                        Item=Devices[Unit].Name
             if DeleteOne == 1: # out of the inner loop it is safe to delete
                 Domoticz.Log('.....')
                 Domoticz.Log('.....Delete  my own device:  **'+Item+'**  Unit: **'+str(UnitToDelete)+'**')
