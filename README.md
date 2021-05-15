@@ -16,7 +16,7 @@ The plugin creates 5 buttons to :
 
 In 6 Tile mode you can still control your heating by an Android app or maybe my Toon Heating app from https://github.com/JackV2020/toonSmallHeating 
  
-The plugin has 12 sensors for 
+The plugin has 12 systeem related sensors for :
 
  - Toon Uptime
  - GUI Uptime
@@ -30,10 +30,13 @@ The plugin has 12 sensors for
  - network input
  - network output
  - Wifi strength
- 
-And only for Toon 2
+
+And 1 sensor for :
 
  - Temperature
+ 
+And only for Toon 2 another 4 sensors :
+
  - Humidity
  - tvoc (air quality : total volatile organic compound)
  - eco2 (air quality : equivalent calculated carbon-dioxide ppm )
@@ -53,6 +56,8 @@ Updates are done every minute.
 Before installing make sure that the requests module is installed :
 sudo apt-get install python3-requests
 ( When already installed it will skip installation and explain it is already installed )
+
+Other modules may be missing but will be reported in the Domoticz runtime logging.
 
 To install the plugin you need to get the contents in your plugin folder :
 
