@@ -30,6 +30,14 @@ The plugin has 12 sensors for
  - network input
  - network output
  - Wifi strength
+ 
+And only for Toon 2
+
+ - Temperature
+ - Humidity
+ - tvoc (air quality : total volatile organic compound)
+ - eco2 (air quality : equivalent calculated carbon-dioxide ppm )
+ - intensity (of light)
 
 The plugin creates a room with the name you enter for your hardware item.
 

@@ -4,9 +4,10 @@
 # version 1.2.0 : added button to start/stop Logging
 # version 1.3.0 : added button for 4-6 tile mode
 # version 1.4.0 : get domoticz http IP port from running process named domoticz (when there is no /etc/init.d/domoticz.sh like on Raspberry Pi)
+# version 1.5.0 : get temperature and for Toon 2 sensor data from http://Toon2/tsc/sensors ( temperature, humidity, eco2, tvoc and light intensity)
 #
 """
-<plugin key="JacksToonMonitor" name="Jacks Toon Monitor" author="Jack Veraart" version="1.4.0">
+<plugin key="JacksToonMonitor" name="Jacks Toon Monitor" author="Jack Veraart" version="1.5.0">
     <description>
         <font size="4" color="white">Toon Monitor </font><font color="white">...Notes...</font>
         <ul style="list-style-type:square">
@@ -64,6 +65,8 @@ RoomName=''     # plugin uses the name you gave to your hardware
 
 Button_Type='0'  # 0: Buttons 1: Drop Down menu
 
+Toon2=False     # plugin looks for http://ToonAddress/tsc/sensors which is missing on a Toon 1
+
 DeviceLibrary={}
 
 RestartToonId=0
@@ -77,6 +80,36 @@ RestartGUIName='Toon Restart GUI'
 VNCName='x11vnc'
 LogName='Log to /var/log/qt'
 Mode46Name='Tile Mode'
+
+SensorTemperatureId=0
+SensorHumidityId=0
+SensorTvocId=0
+SensorEco2Id=0
+SensorIntensityId=0
+
+SensorTemperatureDescription="Toon 2 Temperature"
+SensorHumidityDescription="Toon 2 Humidity"
+SensorTvocDescription="Toon 2 tvoc"
+SensorEco2Description="Toon 2 eco2"
+SensorIntensityDescription="Toon 2 light intensity"
+
+SensorTemperatureName="Temperature"
+SensorHumidityName="Humidity"
+SensorTvocName="TVOC"
+SensorEco2Name="ECO2"
+SensorIntensityName="Intensity"
+
+SensorTemperatureUnits="C"
+SensorHumidityUnits="%"
+SensorTvocUnits="ppb"
+SensorEco2Units="ppm"
+SensorIntensityUnits="lux"
+
+SensorTemperatureImage="Heating"
+SensorHumidityImage="Water"
+SensorTvocImage="Gas"
+SensorEco2Image="Gas"
+SensorIntensityImage="JVSpot"
 
 class BasePlugin:
     enabled = False
@@ -98,6 +131,8 @@ class BasePlugin:
         global ToonAddress
 
         global LocalHostInfo
+        
+        global Toon2
 
         self.pollinterval = HeartbeatInterval  #Time in seconds between two polls
 
@@ -109,6 +144,7 @@ class BasePlugin:
             Domoticz.Debugging(0)
 
         Domoticz.Log("onStart called")
+        
                 
         try:
 #
@@ -124,6 +160,12 @@ class BasePlugin:
             MyIPPort        =GetDomoticzPort()            
 
             LocalHostInfo='http://'+Username+':'+Password+'@localhost:'+MyIPPort
+
+            Domoticz.Debug('call GetToon2Sensors() to determine if this is a Toon 1 / Toon 2 which has http://address/tsc/sensors')
+
+            Toon2 = ( str(GetToon2Sensors()) != "{}" )
+            
+            Domoticz.Debug('Is this a Toon 2 ? : '+str(Toon2))
 
             ImportImages()
 
@@ -234,12 +276,12 @@ class BasePlugin:
         
         if StartupOK == 1 :
                         
-#            Domoticz.Log("onHeartbeat called Hearbeat: " + str(HeartbeatCounter))
+#            Domoticz.Log("onHeartbeat called Heartbeat: " + str(HeartbeatCounter))
 
             if HeartbeatCounter == HeartbeatCounterMax:
 
                 ToonValues = {}
-                ToonValues = GetValues()
+                ToonValues = GetReportValues()
 
                 for field in ToonValues :
                     UpdateValue = ToonValues[field]
@@ -249,7 +291,34 @@ class BasePlugin:
                             UpdateUnit = int(DeviceLibrary[Device]['Unit'])
 
                             Devices[UpdateUnit].Update(  nValue=0, sValue=UpdateValue)
+#
+# For the next calls I have only created the temperature sensor. Others may follow
+#
+                ThermostatInfo = {}
+                ThermostatInfo = GetToonData('Heating')
+
+                Domoticz.Debug('Thermostat Info : ' + str(ThermostatInfo) )
+                
+                UsageInfo = {}
+                UsageInfo = GetToonData('Usage')
+
+                Domoticz.Debug('Usage Info : ' + str(UsageInfo) )
+                
+# Current Temperature
+
+                currentTemp=str(round(float(ThermostatInfo['currentTemp' ])/100,1))
+                Devices[SensorTemperatureId].Update(  nValue=0, sValue=currentTemp)
+                
+                if (Toon2):
+                    ToonSensors = {}
+                    ToonSensors = GetToon2Sensors()
                     
+#                    Devices[SensorTemperatureId].Update(nValue=0, sValue=str(ToonSensors['temperature']))
+                    Devices[SensorHumidityId].Update(nValue=0, sValue=str(ToonSensors['humidity']))
+                    Devices[SensorTvocId].Update(nValue=0, sValue=str(ToonSensors['tvoc']))
+                    Devices[SensorEco2Id].Update(nValue=0, sValue=str(ToonSensors['eco2']))
+                    Devices[SensorIntensityId].Update(nValue=0, sValue=str(ToonSensors['intensity']))
+                
                 HeartbeatCounter = 0
 
             else:
@@ -434,6 +503,56 @@ def ImportImages():
 # --------------------------------------------------------------------------------------------------------------------------------------------------------
 # ----------------------------------------------------  Device Creation Routines  ------------------------------------------------------------------------
 # --------------------------------------------------------------------------------------------------------------------------------------------------------
+def CreateDevice(deviceunit,devicename,devicetype,devicelogo="",devicedescription="",sAxis="",InitialValue=0.0):
+    
+    if deviceunit not in Devices:
+
+        if ImageDictionary == {}:
+            firstimage=0
+            firstimagename='NoImage'
+            Domoticz.Log("ERROR I can not access the image library. Please modify the hardware setup to have the right Username and Password.")      
+        else:
+            firstimage=int(str(ImageDictionary.values()).split()[0].split('[')[1][:-1])
+            firstimagename=str(ImageDictionary.keys()).split()[0].split('[')[1][1:-2]
+            Domoticz.Debug("First image id: " + str(firstimage) + " name: " + firstimagename)
+
+        if firstimage != 0: # we have a dictionary with images and hopefully also the image for devicelogo
+
+            try:
+
+                deviceoptions={}
+                deviceoptions['Custom']="1;"+sAxis
+                Domoticz.Device(Name=devicename, Unit=deviceunit, TypeName=devicetype, Used=1, Image=ImageDictionary[devicelogo], Description=devicedescription).Create()
+                Devices[deviceunit].Update(nValue=Devices[deviceunit].nValue, sValue=str(InitialValue))
+                Domoticz.Log("Created device : " + devicename + " with '"+ devicelogo + "' icon and options "+str(deviceoptions)+' Value '+str(InitialValue))
+            except:
+
+# when devicelogo does not exist, use the first image found, (TypeName values Text and maybe some others will use standard images for that TypeName.)
+
+                try:
+                    Domoticz.Device(Name=devicename, Unit=deviceunit, TypeName=devicetype, Used=1, Image=firstimage, Description=devicedescription).Create()
+                    Devices[deviceunit].Update(nValue=Devices[deviceunit].nValue, sValue=str(InitialValue))
+                    Domoticz.Log("Created device : " + devicename+ " with '"+ firstimagename + "' icon and Value "+str(InitialValue))
+                except:
+                    Domoticz.Log("ERROR Could not create device : " + devicename)
+#
+# The next puts the right name, axis, image and description in the device
+#
+    try:
+
+        NewName = devicename
+
+        deviceoptions={}
+        deviceoptions['Custom']="1;"+sAxis
+
+        Devices[deviceunit].Update(nValue=Devices[deviceunit].nValue, sValue=Devices[deviceunit].sValue, Name=NewName, Options=deviceoptions, Image=ImageDictionary[devicelogo], Description=devicedescription)
+
+        Domoticz.Debug("Updated "+NewName)
+    except:
+        Domoticz.Log("Update Failed")
+        dummy=1
+
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
 
 def CreateDevices():
 
@@ -443,6 +562,12 @@ def CreateDevices():
     global VNCId
     global LogId
     global Mode46Id
+    
+    global SensorTemperatureId
+    global SensorHumidityId
+    global SensorTvocId
+    global SensorEco2Id
+    global SensorIntensityId
 
     DeviceLibrary={}
     Name=''
@@ -504,7 +629,7 @@ def CreateDevices():
         while DeleteOne == 1: # My implementation of repeat until, make sure to get into the loop and immediately make sure to get out of it
             DeleteOne = 0
             for Unit in Devices: # inner loop to find what to delete
-                if not Devices[Unit].Name in DeviceLibrary and not Devices[Unit].Name in [ RestartToonName, RestartGUIName, VNCName, LogName, Mode46Name] :
+                if not Devices[Unit].Name in DeviceLibrary and not Devices[Unit].Name in [ RestartToonName, RestartGUIName, VNCName, LogName, Mode46Name, SensorTemperatureName, SensorHumidityName, SensorTvocName, SensorEco2Name, SensorIntensityName] :
                     DeleteOne = 1                                               # stay in the loop because we may have to do our thing again
                     UnitToDelete = Unit
                     Item=Devices[Unit].Name
@@ -722,7 +847,83 @@ def CreateDevices():
             DeviceProtection(LocalHostInfo,Devices[Mode46Id].ID ,'yes')
 
             Domoticz.Log('Created Mode')
+#
+# Create Temperature sensor supported by Toon 1 and 2
+#
+        for Device in Devices:
+            if Devices[Device].Name == SensorTemperatureName :
+                SensorTemperatureId=Device
 
+        if SensorTemperatureId == 0:
+            DeviceUnit = 1
+            while DeviceUnit in Devices:
+                DeviceUnit = DeviceUnit + 1
+            SensorTemperatureId=DeviceUnit
+
+            CreateDevice(SensorTemperatureId,SensorTemperatureName,"Custom",SensorTemperatureImage,SensorTemperatureDescription,SensorTemperatureUnits,0)
+#
+# Add sensor devices for Toon 2 only
+#
+        if (Toon2):
+
+#
+# Create Humidity sensor
+#
+            for Device in Devices:
+                if Devices[Device].Name == SensorHumidityName :
+                    SensorHumidityId=Device
+
+            if SensorHumidityId == 0:
+                DeviceUnit = 1
+                while DeviceUnit in Devices:
+                    DeviceUnit = DeviceUnit + 1
+                SensorHumidityId=DeviceUnit
+
+                CreateDevice(SensorHumidityId,SensorHumidityName,"Custom",SensorHumidityImage,SensorHumidityDescription,SensorHumidityUnits,0)
+#
+# Create Eco2 sensor
+#
+            for Device in Devices:
+                if Devices[Device].Name == SensorEco2Name :
+                    SensorEco2Id=Device
+
+            if SensorEco2Id == 0:
+                DeviceUnit = 1
+                while DeviceUnit in Devices:
+                    DeviceUnit = DeviceUnit + 1
+                SensorEco2Id=DeviceUnit
+
+                CreateDevice(SensorEco2Id,SensorEco2Name,"Custom",SensorEco2Image,SensorEco2Description,SensorEco2Units,0)
+
+#
+# Create Tvoc sensor
+#
+            for Device in Devices:
+                if Devices[Device].Name == SensorTvocName :
+                    SensorTvocId=Device
+
+            if SensorTvocId == 0:
+                DeviceUnit = 1
+                while DeviceUnit in Devices:
+                    DeviceUnit = DeviceUnit + 1
+                SensorTvocId=DeviceUnit
+
+                CreateDevice(SensorTvocId,SensorTvocName,"Custom",SensorTvocImage,SensorTvocDescription,SensorTvocUnits,0)
+
+#
+# Create Intensity sensor
+#
+            for Device in Devices:
+                if Devices[Device].Name == SensorIntensityName :
+                    SensorIntensityId=Device
+
+            if SensorIntensityId == 0:
+                DeviceUnit = 1
+                while DeviceUnit in Devices:
+                    DeviceUnit = DeviceUnit + 1
+                SensorIntensityId=DeviceUnit
+
+                CreateDevice(SensorIntensityId,SensorIntensityName,"Custom",SensorIntensityImage,SensorIntensityDescription,SensorIntensityUnits,0)
 #
 # (Re-)Create Room
 #
@@ -740,6 +941,14 @@ def CreateDevices():
         AddToRoom(LocalHostInfo,RoomIdx,Devices[VNCId].ID)
         AddToRoom(LocalHostInfo,RoomIdx,Devices[LogId].ID)
         AddToRoom(LocalHostInfo,RoomIdx,Devices[Mode46Id].ID)
+
+        if (Toon2):
+
+            AddToRoom(LocalHostInfo,RoomIdx,Devices[SensorTemperatureId].ID)
+            AddToRoom(LocalHostInfo,RoomIdx,Devices[SensorHumidityId].ID)
+            AddToRoom(LocalHostInfo,RoomIdx,Devices[SensorTvocId].ID)
+            AddToRoom(LocalHostInfo,RoomIdx,Devices[SensorEco2Id].ID)
+            AddToRoom(LocalHostInfo,RoomIdx,Devices[SensorIntensityId].ID)
 
     return MyStatus
     
@@ -833,7 +1042,7 @@ def AddToRoom(HostInfo,RoomIDX,ItemIDX):
     return idx
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------------
-def GetValues():
+def GetReportValues():
 
     global DeviceLibrary
 
@@ -874,7 +1083,68 @@ def GetValues():
 #    Domoticz.Log(str(mydict))
 
     return mydict
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+def GetToonData(what):
+#
+# HostInfo : http(s)://user:pwd@somehost.somewhere:port
+#
+# http://192.168.2.23/happ_thermstat?action=getThermostatInfo
+    import json
+    import requests
+
+    try:
+        mydict={}
+
+        if what == 'Heating':
+            url='http://'+ToonAddress+'/happ_thermstat?action=getThermostatInfo' 
+        else:
+            url='http://'+ToonAddress+'/happ_pwrusage?action=GetCurrentUsage' 
         
+#        Domoticz.Log('....'+url)
+
+        response=requests.get(url, timeout=5)
+        mydict = json.loads(response.text)
+
+    except:
+        mydict={}
+
+#    Domoticz.Log(str(mydict))
+    
+    return mydict
+# --------------------------------------------------------------------------------------------------------------------------------------------------------
+
+def GetToon2Sensors():
+#
+# HostInfo : http(s)://user:pwd@somehost.somewhere:port
+#
+    try :
+        import json
+    except:
+        Domoticz.Log("python3 is missing module json")
+    
+    try:
+        import requests
+    except:
+        Domoticz.Log("python3 is missing module requests")
+
+    try:
+        mydict={}
+
+        url='http://' + ToonAddress + '/tsc/sensors'
+
+        Domoticz.Debug('....'+url)
+
+        response=requests.get(url)
+        mydict = json.loads(response.text)
+#        Domoticz.Log('Toon sensor data : '+str(mydict))
+
+    except:
+        mydict={}
+
+    Domoticz.Debug(str(mydict))
+    
+    return mydict
+
 # --------------------------------------------------------------------------------------------------------------------------------------------------------
 def DeviceProtection(HostInfo,ItemIDX,Protected):
 #
