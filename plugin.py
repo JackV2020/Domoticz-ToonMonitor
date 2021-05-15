@@ -5,6 +5,7 @@
 # version 1.3.0 : added button for 4-6 tile mode
 # version 1.4.0 : get domoticz http IP port from running process named domoticz (when there is no /etc/init.d/domoticz.sh like on Raspberry Pi)
 # version 1.5.0 : get temperature and for Toon 2 sensor data from http://Toon2/tsc/sensors ( temperature, humidity, eco2, tvoc and light intensity)
+# version 1.5.1 : previous version did not put temperature in the room for Toon 1
 #
 """
 <plugin key="JacksToonMonitor" name="Jacks Toon Monitor" author="Jack Veraart" version="1.5.0">
@@ -391,6 +392,7 @@ def GetDomoticzPort():
         import subprocess
     except:
         Domoticz.Log("python3 is missing module subprocess")
+        
     try:
         import time
     except:
@@ -942,9 +944,10 @@ def CreateDevices():
         AddToRoom(LocalHostInfo,RoomIdx,Devices[LogId].ID)
         AddToRoom(LocalHostInfo,RoomIdx,Devices[Mode46Id].ID)
 
+        AddToRoom(LocalHostInfo,RoomIdx,Devices[SensorTemperatureId].ID)
+
         if (Toon2):
 
-            AddToRoom(LocalHostInfo,RoomIdx,Devices[SensorTemperatureId].ID)
             AddToRoom(LocalHostInfo,RoomIdx,Devices[SensorHumidityId].ID)
             AddToRoom(LocalHostInfo,RoomIdx,Devices[SensorTvocId].ID)
             AddToRoom(LocalHostInfo,RoomIdx,Devices[SensorEco2Id].ID)
@@ -962,6 +965,7 @@ def CreateRoom(HostInfo,RoomName, Recreate):
         import json
     except:
         Domoticz.Log("python3 is missing module json")
+        
     try:
         import requests
     except:
@@ -1014,6 +1018,7 @@ def AddToRoom(HostInfo,RoomIDX,ItemIDX):
         import json
     except:
         Domoticz.Log("python3 is missing module json")
+        
     try:
         import requests
     except:
@@ -1050,6 +1055,7 @@ def GetReportValues():
         import subprocess
     except:
         Domoticz.Log("python3 is missing module subprocess")
+        
     try:
         import time
     except:
@@ -1089,8 +1095,16 @@ def GetToonData(what):
 # HostInfo : http(s)://user:pwd@somehost.somewhere:port
 #
 # http://192.168.2.23/happ_thermstat?action=getThermostatInfo
-    import json
-    import requests
+    try :
+        import json
+    except:
+        Domoticz.Log("python3 is missing module json")
+    
+    try:
+        import requests
+    except:
+        Domoticz.Log("python3 is missing module requests")
+
 
     try:
         mydict={}
