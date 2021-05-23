@@ -3,15 +3,17 @@ It is connected to your boiler and maybe to your electricity and gas meters and 
 It comes with an Eneco subscription for which you pay a fee unless you use a rooted Toon which is perfectly legal to do.
 
 Toon in fact is a little linux computer which you may like to see performance statistics of and developers may like some controls for.
+Toon also has some more interesting things you may want to see.
 
-This is why I developed this Domoticz plugin on my Raspberry Pi ( it may work on other platforms also )
+This is why I developed this Domoticz plugin on my Raspberry Pi ( it also runs on pine64 and Synology NAS and maybe on others too )
 
-The plugin creates 5 buttons to :
+The plugin creates 6 buttons to :
 
  - Restart Toon
  - Restart Toon GUI
  - Start/Stop vnc ( Toon 1 full and Toon 2 view-only support )
- - Enable/Disable debug logging to /var/log/qt
+ - Start/Stop debug logging to /var/log/qt
+ - Clean the log file
  - Toggle between '4 Tiles + big Heating tile' and '6 Tiles without big Heating tile'
 
 In 6 Tile mode you can still control your heating by an Android app or maybe my Toon Heating app from https://github.com/JackV2020/toonSmallHeating 
@@ -20,54 +22,40 @@ The plugin has 12 systeem related sensors for :
 
  - Toon Uptime
  - GUI Uptime
- - root  filesystem usage
- - ramdisk usage
- - load last minute
- - load last 5 minutes
- - load last 15 minutes
+ - Root  filesystem usage
+ - Ramdisk usage
+ - Load last minute
+ - Load last 5 minutes
+ - Load last 15 minutes
  - CPU idle
- - free memory
- - network input
- - network output
+ - Free memory
+ - Network input
+ - Network output
  - Wifi strength
 
-And 1 sensor for :
+The plugin has additional sensors for other things which you could be interested in.
+( To remove them from the screen you can disable them in > Setup > Devices and use the 'Set Unused' arrow left from the pencil )
 
- - Temperature
- 
-And only for Toon 2 another 4 sensors :
+Just to not polute your Domoticz with all the buttons and sensors......
+The plugin creates a room with the name you enter for your hardware item and puts everything in that room.
 
- - Humidity
- - tvoc (air quality : total volatile organic compound)
- - eco2 (air quality : equivalent calculated carbon-dioxide ppm )
- - intensity (of light)
+Updates of the sensors are done every minute.
 
-The plugin creates a room with the name you enter for your hardware item.
+A remark before installation : Your python installation may need additional plugins.
+Check the live logging of your Domoticz where you will see messages from the plugin explaining what is missing.
 
-The buttons are protected by a password you enter in Domoticz in :
-
- - > Setup > Settings > Light/Switch Protection: Password.
-
-By going to the Switches menu and editing the switches you can remove the protection.
-After a restart of the plugin the protection will not change.
-
-Updates are done every minute.
-
-Before installing make sure that the requests module is installed :
-sudo apt-get install python3-requests
-( When already installed it will skip installation and explain it is already installed )
-
-Other modules may be missing but will be reported in the Domoticz runtime logging.
+A module which was missing on pine64 and Synology NAS was the requests module.
+On the pine64 it was installed by 'sudo apt-get install python3-requests'.
 
 To install the plugin you need to get the contents in your plugin folder :
 
-On a Raspberry Pi you could :
+On a Raspberry Pi :
 
-Start a terminal and go to your plugins folder and the next will get it for you into a ToonMonitor folder : 
+Start a terminal and go to your ~/domoticz/plugins folder and the next will get it for you into a ToonMonitor folder : 
 
  ....../plugins$ git clone https://github.com/JackV2020/Domoticz-ToonMonitor.git ToonMonitor
 
-later when you want to check for updates you go into the folder and issue git pull :
+Later when you want to check for updates you go into the folder and issue git pull :
 
  ....../plugins/ToonMonitor$ git pull
 
@@ -84,6 +72,8 @@ You do that on your Domoticz host : ( replace 192.168.2.123 with the address of 
 test the script :
  - ssh root@192.168.2.123 ./toon-performance.sh
 
+( during the first test expect network traffic to be reported as 0 )
+
 To get the new plugin in Domoticz you restart your domoticz like :
 
     sudo systemctl restart domoticz
@@ -91,7 +81,7 @@ To get the new plugin in Domoticz you restart your domoticz like :
 After this you can add the hardware and you are ready to use it.
 The Type name of the plugin is 'Jacks Toon Monitor'.
 
-However, you may want more......which is documented in ToonMonitor.conf and Installing.txt
+However, you may want more ( or less ;-) ) ......which is documented in ToonMonitor.conf and Installing.txt
 
 In ToonMonitor.conf you find how to add/remove/change sensors.
 Keep a copy of your changes because an update of the app will overwrite your changes.
