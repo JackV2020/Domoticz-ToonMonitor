@@ -1,7 +1,7 @@
 #
 # Changelog:
 #
-# version 2.0.1 : Toon 1 had no /qmf/www/tsc folder so hyperlink did not work
+# version 2.0.1 : Toon 1 had no /qmf/www/tsc folder so hyperlink did not work 
 #                 when logging is enabled, restart of GUI does not initialise log but appends
 # version 2.0.0 : revised all coding
 #                 added parameter to select Toon type
