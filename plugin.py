@@ -1,6 +1,8 @@
 #
 # Changelog:
 #
+# version 2.0.1 : Toon 1 had no /qmf/www/tsc folder so hyperlink did not work
+#                 when logging is enabled, restart of Toon/GUI does not initialise log but appends
 # version 2.0.0 : revised all coding
 #                 added parameter to select Toon type
 #                 cleared button names so now only last action is shown on button, much cleaner
@@ -278,10 +280,10 @@ class BasePlugin:
             command=command + ' "if uname -a | grep armv5 ; then /usr/bin/killall x11vnc-bin ; else /usr/bin/killall x11vnc ; fi"'
 
         if Unit == LogId and Level == 10 :
-            command=command + ' "sed -i ' + chr(39) + 's#startqt >/dev/null#startqt >/var/log/qt#' + chr(39) + ' /etc/inittab ; /sbin/init q ; /usr/bin/killall qt-gui ; ln -s /var/log/qt /qmf/www/tsc/qt"'
+            command=command + ' "sed -i ' + chr(39) + 's#startqt >/dev/null#startqt >>/var/log/qt#' + chr(39) + ' /etc/inittab ; /sbin/init q ; /usr/bin/killall qt-gui ; mkdir /qmf/www/tsc ; ln -s /var/log/qt /qmf/www/tsc/qt"'
 
         if Unit == LogId and Level == 20 :
-            command=command + ' "sed -i ' + chr(39) + 's#startqt >/var/log/qt#startqt >/dev/null#' + chr(39) + ' /etc/inittab ; /sbin/init q ; /usr/bin/killall qt-gui; rm /qmf/www/tsc/qt" '
+            command=command + ' "sed -i ' + chr(39) + 's#startqt >>/var/log/qt#startqt >/dev/null#' + chr(39) + ' /etc/inittab ; /sbin/init q ; /usr/bin/killall qt-gui; rm /qmf/www/tsc/qt" '
 
         if Unit == ClearLogId:
 # this command will only restart gui if logging is active
