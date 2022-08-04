@@ -1,0 +1,390 @@
+-----------------------------------------------------------------------
+
+ This file contains :
+    Required actions to get communication with Toon setup.
+    Optional actions if you want vnc on Toon 1 or Toon 2
+    Optional actions if you want sftp on Toon 2 ( is already on Toon 1 )
+ 
+-----------------------------------------------------------------------
+
+ Required actions to get communication with Toon setup.
+
+ 1) Enable ssh without passwords.
+ 2) Copy reporting script to Toon.
+
+ All devices as already configured in ToonMonitor.conf will work.
+
+ Details are below.........
+
+--- 1) Enable ssh without passwords.
+
+ You will enable passwordless ssh for root account to Toon.
+
+  A) On Domoticz host be root
+        sudo -i
+  B) generate keys 
+        ( if already done before it will exit by default which is good ) 
+        ssh-keygen 
+           ( 4 x enter so no typing just enter, enter,...)
+  C) Copy public key to Toon
+		( change ToonIPAddress to your Toon IP address )
+        ssh-copy-id -i ~/.ssh/id_rsa.pub root@ToonIPAddress
+      like
+        ssh-copy-id -i ~/.ssh/id_rsa.pub root@192.168.1.123
+  D) Test
+        ssh root@ToonIPAddress hostname
+        ssh root@ToonIPAddress
+        exit
+        ssh root@ToonIPAddress hostname
+  E) Leave root
+		 exit
+
+ Note on the actions above :
+    During first ssh action you may need to accept the remote key.
+    Next time you just use the ssh command and get the response you want.
+    You can use this to any host you want to enable passwordless ssh/rsync/sftp/... to.
+
+--- 2) Copy reporting script to Toon.
+
+  A) Copy file to Toon ( change ToonIPAddress to your Toon IP address ) :
+        sudo rcp /home/pi/domoticz/plugins/ToonMonitor/toon-performance.sh root@ToonIPAddress:toon-performance.sh
+  B) make script executable :
+        sudo ssh root@ToonIPAddress chmod +x toon-performance.sh
+  C) test
+     sudo ssh root@ToonIPAddress ./toon-performance.sh
+
+ Now things are ready for Domoticz.
+
+ Note :
+
+ The command you used for testing is also used by the plugin to get the data.
+
+ The command used to restart Toon :
+        ssh root@ToonIPAddress /sbin/init 6
+
+ The command used to restart the gui :
+        ssh root@ToonIPAddress /usr/bin/killall qt-gui
+
+-----------------------------------------------------------------------
+
+ Optional actions if you want vnc on Toon 1 or Toon 2
+ 
+ Remember vnc on Toon 2 is view only but still handy for screenshots.
+ 
+ Note that Toon 1 is not a 8 CPU 8GB machine so everything takes a while....
+
+ On a Toon 1 be patient in the process below
+ 
+ The below does not only contain instructions but also some screen output I had
+ 
+ Commands to be entered are behind a # and are not always the same for Toon 1 and Toon 2
+
+ All you need to do is copy what is after the # signs and paste them on Toon
+
+ So you may read everything or skip to the #-es only ;-)
+
+ ------------ VNC Server installation
+
+ Use putty or another ssh tool to logon to Toon
+
+ Check if x11vnc is installed :
+
+ # which x11vnc
+
+ When it is there you may want to reset the password. 
+ See the section Reset vnc password at the end of this instruction.
+ 
+ When there is nothing returned you can install x11vnc so continue
+
+ ---- Update repositories
+
+ To be able to install x11vnc we need to update first.
+ To be able to install or update we need to open a vpn.
+
+ Open the vpn 
+ ( safe according to https://www.domoticaforum.eu/viewtopic.php?t=12919 )
+
+ # sh update-rooted.sh -o
+ ( and give the right answers to continue executing the script like : yes, yes )
+
+ Only start VPN and then quit
+ Now starting the VPN tunnel and waiting for it to be alive and configured...
+ Now starting the VPN tunnel and waiting for it to be alive and configured...
+ Tunnel is alive and configured.
+ >> configured opkg feeds:
+ src/gz base http://feed.hae.int/feeds/qb2/uni/5.33.9
+ src/gz oe-2.6.36-R10-h28-cmpxchg64 http://feed.hae.int/feeds/qb2/oe/angelica-1.6.0-master-psplash-curl/2.6.36-R10-h28-cmpxchg64
+ src/gz oe-2.6.36-base-r17-splash2 http://feed.hae.int/feeds/qb2/oe/angelica-1.6.0-master-psplash-curl/2.6.36-base-r17-splash2
+ src/gz oe-all http://feed.hae.int/feeds/qb2/oe/angelica-1.6.0-master-psplash-curl/all
+ src/gz oe-armv5e http://feed.hae.int/feeds/qb2/oe/angelica-1.6.0-master-psplash-curl/armv5e
+ src/gz oe-quby2 http://feed.hae.int/feeds/qb2/oe/angelica-1.6.0-master-psplash-curl/quby2
+ VPN is started, OPKG sources should now be available for you. Good luck!
+ If you are done with manual package downloading, just reboot and the VPN should be closed again.
+
+
+ NOTE the last line above that after installation we need to reboot to close the VPN.
+ Now the VPN is open we can update.
+
+ # opkg update
+ Downloading http://feed.hae.int/feeds/qb2/uni/5.33.9/Packages.gz.
+ Inflating http://feed.hae.int/feeds/qb2/uni/5.33.9/Packages.gz.
+ Updated list of available packages in /var/lib/opkg/base.
+ Downloading http://feed.hae.int/feeds/qb2/uni/5.33.9/Packages.sig.
+ Signature check passed.
+ Downloading http://feed.hae.int/feeds/qb2/oe/angelica-1.6.0-master-psplash-curl/2.6.36-R10-h28-cmpxchg64/Packages.gz.
+ Inflating http://feed.hae.int/feeds/qb2/oe/angelica-1.6.0-master-psplash-curl/2.6.36-R10-h28-cmpxchg64/Packages.gz.
+ Updated list of available packages in /var/lib/opkg/oe-2.6.36-R10-h28-cmpxchg64.
+ Downloading http://feed.hae.int/feeds/qb2/oe/angelica-1.6.0-master-psplash-curl/2.6.36-R10-h28-cmpxchg64/Packages.sig.
+ Signature check passed.
+ Downloading http://feed.hae.int/feeds/qb2/oe/angelica-1.6.0-master-psplash-curl/2.6.36-base-r17-splash2/Packages.gz.
+ Inflating http://feed.hae.int/feeds/qb2/oe/angelica-1.6.0-master-psplash-curl/2.6.36-base-r17-splash2/Packages.gz.
+ Updated list of available packages in /var/lib/opkg/oe-2.6.36-base-r17-splash2.
+ Downloading http://feed.hae.int/feeds/qb2/oe/angelica-1.6.0-master-psplash-curl/2.6.36-base-r17-splash2/Packages.sig.
+ Signature check passed.
+ Downloading http://feed.hae.int/feeds/qb2/oe/angelica-1.6.0-master-psplash-curl/all/Packages.gz.
+ Inflating http://feed.hae.int/feeds/qb2/oe/angelica-1.6.0-master-psplash-curl/all/Packages.gz.
+ Updated list of available packages in /var/lib/opkg/oe-all.
+ Downloading http://feed.hae.int/feeds/qb2/oe/angelica-1.6.0-master-psplash-curl/all/Packages.sig.
+ Signature check passed.
+ Downloading http://feed.hae.int/feeds/qb2/oe/angelica-1.6.0-master-psplash-curl/armv5e/Packages.gz.
+ Inflating http://feed.hae.int/feeds/qb2/oe/angelica-1.6.0-master-psplash-curl/armv5e/Packages.gz.
+ Updated list of available packages in /var/lib/opkg/oe-armv5e.
+ Downloading http://feed.hae.int/feeds/qb2/oe/angelica-1.6.0-master-psplash-curl/armv5e/Packages.sig.
+ Signature check passed.
+ Downloading http://feed.hae.int/feeds/qb2/oe/angelica-1.6.0-master-psplash-curl/quby2/Packages.gz.
+ Inflating http://feed.hae.int/feeds/qb2/oe/angelica-1.6.0-master-psplash-curl/quby2/Packages.gz.
+ Updated list of available packages in /var/lib/opkg/oe-quby2.
+ Downloading http://feed.hae.int/feeds/qb2/oe/angelica-1.6.0-master-psplash-curl/quby2/Packages.sig.
+ Signature check passed.
+
+---- Find out which version we need to install
+
+ The x11vnc version depends on the ssl version.
+ So check openssl version :
+
+ # openssl version
+ OpenSSL 1.0.2p  14 Aug 2018
+
+ Newer fw versions (with openssl 1.0.2h) will need r3, older ones use r0.
+
+---- Method 1 ( if it does not work use Method 2 )
+
+ Depending on your fw version download the file you need for r0 or r3 :
+
+ # opkg install http://files.domoticaforum.eu/uploads/Toon/ipk/qb2/x11vnc_0.9.13-r0_qb2.ipk
+ or
+ # opkg install http://files.domoticaforum.eu/uploads/Toon/ipk/qb2/x11vnc_0.9.13-r3_qb2.ipk
+
+ Skip Method 2 and go to 'Check installation'
+
+---- Method 2 if Method 1 does not work.
+
+ Download your installer package :
+
+ Start web browser for http://files.domoticaforum.eu/index.php?cam=
+
+ Select : Toon > ipkg > qb2
+
+ Depending on your fw version download the file you need for r0 or r3 :
+
+ x11vnc_0.9.13-r0_qb2.ipk OR x11vnc_0.9.13-r3_qb2.ipk
+
+ Create the folder /root/downloads on Toon
+
+ On Toon :
+ # mkdir download
+
+ On your host :
+ # sudo rcp your-file  root@ToonIPAddress:/root/downloads/your-file 
+
+ On Toon :
+ # cd downloads
+
+ # opkg install x11vnc_0.9.13-r3_qb2.ipk
+ Installing x11vnc (0.9.13-r3) to root...
+ Multiple replacers for glibc, using first one (libc6).
+ Multiple replacers for zlib, using first one (libz1).
+ Multiple replacers for jpeg, using first one (libjpeg8).
+ Multiple replacers for jpeg, using first one (libjpeg8).
+ Configuring x11vnc.
+
+---- Check installation
+
+ # which x11vnc
+ /usr/bin/x11vnc
+
+ Setup x11vnc and DO NOT FORGET the password you enter here.
+ 
+ (Forgot password ? : delete /root/.vnc/passwd and do the next again )
+
+For Toon 1 : # x11vnc
+For Toon 2 : # x11vnc -storepasswd
+ Enter VNC password:
+ Verify password:
+ Write password to /root/.vnc/passwd?  [y]/n
+ Password written to: /root/.vnc/passwd
+ :
+ lost and lots of text
+ :
+ The SSL VNC desktop is:  eneco-001-338271:0
+ PORT=5900
+ SSLPORT=5900
+
+---- Configure firewall
+
+ You may read on on just skip to the next #
+
+ Now x11vnc is installed and configured you need to allow access in the firewall.
+ The rules are in /etc/default/iptables.conf so you need to edit that file some way.
+ You can read the text below and use any tool to get this done or just do it like this.
+ The editor in Toon is joe.
+
+ When editing with joe you get help by pressing and holding Ctrl followed by KH where joe notes this as ^KH 
+ A copy of the help info of Toon is below.
+ (The most important commands are ^KX for exit and save and ^C for exit without save)
+
+   Help Screen    turn off with ^KH    more help with ESC . (^[.)
+ CURSOR           GO TO            BLOCK      DELETE   MISC         EXIT
+ ^B left ^F right ^U  prev. screen ^KB begin  ^D char. ^KJ reformat ^KX save
+ ^P up   ^N down  ^V  next screen  ^KK end    ^Y line  ^T  options  ^C  abort
+ ^Z previous word ^A  beg. of line ^KM move   ^W >word ^R  refresh  ^KZ shell
+ ^X next word     ^E  end of line  ^KC copy   ^O word< ^@  insert   FILE
+ SEARCH           ^KU top of file  ^KW file   ^J >line SPELL        ^KE edit
+ ^KF find text    ^KV end of file  ^KY delete ^_ undo  ^[N word     ^KR insert
+ ^L  find next    ^KL to line No.  ^K/ filter ^^ redo  ^[L file     ^KD save
+    I    x.x                          Row 1    Col 1    8:03  Ctrl-K H for help
+
+ Hitting ^KH again closes the help
+
+ Now use arrow keys to scroll down, and enter to open a line to insert the next line in /etc/default/iptables.conf :
+ -A HCB-INPUT -p tcp -m tcp --dport 5900 --tcp-flags SYN,RST,ACK SYN -j ACCEPT
+
+ Add a line for port 5900 like # joe /etc/default/iptables.conf
+ :
+ :
+ -A HCB-INPUT -p tcp -m tcp --dport 22 --tcp-flags SYN,RST,ACK SYN -j ACCEPT
+ -A HCB-INPUT -p tcp -m tcp --dport 5900 --tcp-flags SYN,RST,ACK SYN -j ACCEPT
+ -A HCB-INPUT -p tcp -m tcp --dport 10080 --tcp-flags SYN,RST,ACK SYN -j ACCEPT
+ :
+ :
+ ^KX
+ File /etc/default/iptables.conf saved.
+
+---- Activate firewall rules
+
+ You can activate the firewall rules by restarting the firewall like :
+
+ # /etc/init.d/iptables restart
+
+ or since we also need to close the VPN just reboot :
+
+ # init 6
+
+ After reboot there is an Eneco message on Toon which I think was caused by opening the vpn.
+
+---- start x11vnc
+
+ ssh to toon and start x11vnc :
+
+For Toon 1 : # x11vnc
+For Toon 2 a long one : # x11vnc -forever -shared -rawfb map:/dev/fb0@1024x600x32 -usepw -pipeinput UINPUT:touch,touch_always=1,abs,pressure=128,direct_abs=/dev/input/event0,direct_btn=/dev/input/event0,direct_rel=/devinput/event0,direct_key=/dev/input/event0,nouinput
+ The SSL VNC desktop is:  eneco-001-338271:0
+ PORT=5900
+ SSLPORT=5900
+
+ Since vnc was configured before no questions are asked
+
+---- stop x11vnc
+
+For Toon 1 : # ps | grep x11vnc
+For Toon 2 : # ps -ef | grep x11vnc
+
+For Toon 1 : # killall x11vnc-bin
+For Toon 2 : # killall x11vnc
+
+For Toon 1 : # ps | grep x11vnc
+For Toon 2 : # ps -ef | grep x11vnc
+
+---- VNC Client Windows
+
+ On Windows install tigervnc
+
+ Download windows version from https://tigervnc.en.lo4d.com/windows
+
+ use TigerVNC to connect.
+
+---- VNC Client Android
+
+ install bVNC app
+
+ use bVNC app to connect
+
+----------------------------------------------------------------------
+
+ Optional actions if you want sftp on Toon 2
+
+---- Method 1 ( if it does not work use Method 2 )
+
+ ssh to your Toon and
+
+ # opkg install http://files.domoticaforum.eu/index.php?cam=/Toon/ipk/cortexa9hf-vfp-neon/openssh-sftp-server_6.7p1-r0_cortexa9hf-vfp-neon.ipk
+
+ Skip Method 2 and go to 'Check installation'
+
+---- Method 2 if Method 1 does not work.
+
+ Download your installer package :
+
+ Start web browser for :
+ http://files.domoticaforum.eu/index.php?cam=/Toon/ipk/cortexa9hf-vfp-neon
+
+ Download openssh-sftp-server_6.7p1-r0_cortexa9hf-vfp-neon.ipk
+
+ Create the folder /root/downloads on Toon
+
+ On Toon :
+ # mkdir download
+
+ On your host :
+ # sudo openssh-sftp-server_6.7p1-r0_cortexa9hf-vfp-neon.ipk  root@ToonIPAddress:/root/downloads/openssh-sftp-server_6.7p1-r0_cortexa9hf-vfp-neon.ipk
+
+ On Toon :
+ # cd downloads
+
+ # opkg install openssh-sftp-server_6.7p1-r0_cortexa9hf-vfp-neon.ipk
+
+---- Check installation
+
+ # ls -l /usr/lib/openssh/sftp-server
+ 
+---- Setup as an always running server
+
+ I did this since Toon 2 has enough power to run it.
+
+ # joe /etc/inittab
+
+ Add the next line
+ sftp:5:respawn:/usr/lib/openssh/sftp-server >/dev/null 2>&1
+
+ so the file looks like :
+
+    :
+    :
+    :
+    #ovpn:235:respawn:/usr/sbin/openvpn --config /etc/openvpn/vpn.conf --verb 0 >/dev/null 2>&1
+
+    sftp:5:respawn:/usr/lib/openssh/sftp-server >/dev/null 2>&1
+
+    # WARNING: auto-managed by '/etc/init.d/HCBv2 inittabwrap' with '/HCBv2/etc/start.d/*'
+    :
+    :
+    :
+ ^KX
+
+ and the file is saved.
+ 
+ Reboot and sftp access should work
+ 
+ # init 6
+  
+----------------------------------------------------------------------
