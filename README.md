@@ -16,9 +16,9 @@ The plugin creates 6 buttons to :
  - Clean the log file
  - Toggle between '4 Tiles + big Heating tile' and '6 Tiles without big Heating tile'
 
-In 6 Tile mode you can still control your heating by an Android app or maybe my Toon Heating app from https://github.com/JackV2020/toonSmallHeating 
+When you use 6 tiles, the big heating app disappears, I suggest to use my thermostatPlus app from the ToonStore on your Toon to control your heating.
  
-The plugin has 12 systeem related sensors for :
+The plugin has a lot of  system related sensors like :
 
  - Toon Uptime
  - GUI Uptime
@@ -32,6 +32,7 @@ The plugin has 12 systeem related sensors for :
  - Network input
  - Network output
  - Wifi strength
+ - and many more
 
 The plugin has additional sensors for other things which you could be interested in.
 ( To remove them from the screen you can disable them in > Setup > Devices and use the 'Set Unused' arrow left from the pencil )
@@ -39,7 +40,7 @@ The plugin has additional sensors for other things which you could be interested
 Just to not polute your Domoticz with all the buttons and sensors......
 The plugin creates a room with the name you enter for your hardware item and puts everything in that room.
 
-Updates of the sensors are done every minute.
+Updates of the sensors are done every 5 minutes.
 
 A remark before installation : Your python installation may need additional plugins.
 Check the live logging of your Domoticz where you will see messages from the plugin explaining what is missing.
@@ -55,24 +56,9 @@ Start a terminal and go to your ~/domoticz/plugins folder and the next will get 
 
  ....../plugins$ git clone https://github.com/JackV2020/Domoticz-ToonMonitor.git ToonMonitor
 
-Later when you want to check for updates you go into the folder and issue git pull :
-
- ....../plugins/ToonMonitor$ git pull
-
 After the first time installation you need to enable access to Toon and put a reporting script in place.
 
-You do that on your Domoticz host : ( replace 192.168.2.123 with the address of your Toon )
-
- - sudo -i
- - ssh-keygen   
-    ( and press enter 4 times, no password )
- - ssh-copy-id -i ~/.ssh/id_rsa.pub root@192.168.2.123
- - rcp /home/pi/domoticz/plugins/ToonMonitor/toon-performance.sh root@192.168.2.123:toon-performance.sh
- - ssh root@192.168.2.123 chmod +x toon-performance.sh
-test the script :
- - ssh root@192.168.2.123 ./toon-performance.sh
-
-( during the first test expect network traffic to be reported as 0 )
+Details on that are in Installing.txt
 
 To get the new plugin in Domoticz you restart your domoticz like :
 
@@ -84,7 +70,6 @@ The Type name of the plugin is 'Jacks Toon Monitor'.
 However, you may want more ( or less ;-) ) ......which is documented in ToonMonitor.conf and Installing.txt
 
 In ToonMonitor.conf you find how to add/remove/change sensors.
-Keep a copy of your changes because an update of the app will overwrite your changes.
 
 In Installing.txt you find how to install VNC on Toon 1/Toon 2 and SFTP on Toon 2 if you want that.
 VNC Clients known to work are TigerVNC Viewer on Windows and Linux and bVNC Free on Android.

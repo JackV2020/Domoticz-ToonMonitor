@@ -1,8 +1,8 @@
 #
 # Changelog:
 #
-# version 2.0.1 : Toon 1 had no /qmf/www/tsc folder so hyperlink did not work 
-#                 when logging is enabled, restart of GUI does not initialise log but appends
+# version 2.0.1 : Toon 1 had no /qmf/www/tsc folder so hyperlink did not work
+#                 when logging is enabled, restart of Toon/GUI does not initialise log but appends
 # version 2.0.0 : revised all coding
 #                 added parameter to select Toon type
 #                 cleared button names so now only last action is shown on button, much cleaner
@@ -24,7 +24,7 @@
 # version 1.0.0 : initial version
 #
 """
-<plugin key="JacksToonMonitor" name="Jacks Toon Monitor" author="Jack Veraart" version="2.0.0">
+<plugin key="JacksToonMonitor" name="Jacks Toon Monitor" author="Jack Veraart" version="2.0.1">
     <description>
         <font size="4" color="white">Toon Monitor </font><font color="white">...Notes...</font>
         <ul style="list-style-type:square">
@@ -81,7 +81,8 @@ import Domoticz
 StartupOK=0
 
 HeartbeatInterval=10  # 10 seconds is limit to avoid broken thread notifications
-HeartbeatCounterMax = 6 # Only every 'HeartbeatCounterMax * HeartbeatInterval' seconds there is a real update.
+#HeartbeatCounterMax = 6 # Only every 'HeartbeatCounterMax * HeartbeatInterval' seconds there is a real update.
+HeartbeatCounterMax = 30 # Only every 'HeartbeatCounterMax * HeartbeatInterval' seconds there is a real update.
 HeartbeatCounter = 0
 
 ToonAddress=''  # plugin parameter

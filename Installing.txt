@@ -3,7 +3,7 @@
  This file contains :
     Required actions to get communication with Toon setup.
     Optional actions if you want vnc on Toon 1 or Toon 2
-    Optional actions if you want sftp on Toon 2 ( is already on Toon 1 )
+    Optional actions if you want sftp on Toon, if not installed already
  
 -----------------------------------------------------------------------
 
@@ -23,6 +23,8 @@
   A) On Domoticz host be root
         sudo -i
   B) generate keys 
+        - ls ~/.ssh/id_rsapub
+        - when there is an id_rsapub file there, skip to step C because it would generate a new one.
         ( if already done before it will exit by default which is good ) 
         ssh-keygen 
            ( 4 x enter so no typing just enter, enter,...)
@@ -31,20 +33,52 @@
         ssh-copy-id -i ~/.ssh/id_rsa.pub root@ToonIPAddress
       like
         ssh-copy-id -i ~/.ssh/id_rsa.pub root@192.168.1.123
+        ( accept key offer and enter password which is most probably toon )
   D) Test
+        ( when it fails you may need to "Restore password" in menu on Toon and retry and maybe even try option F below )
         ssh root@ToonIPAddress hostname
         ssh root@ToonIPAddress
         exit
         ssh root@ToonIPAddress hostname
   E) Leave root
 		 exit
+  F) When the test failed even after "Restore password" on Toon.....
+        The ssh-copy-id of step C just needs to add the contents of the text file ~/.ssh/id_rsa.pub
+        into the file ~/.ssh/authorized_keys in the folder of root on your Toon.
+        So I started an ssh session to my toon and made sure there was this .ssh folder
+        - ssh root@toon
+        ( enter password toon )
+        - ls .ssh
+        - when the folder is not there : mkdir .ssh
+        - cd .ssh
+        now in a different terminal window on Pi :
+        - cat ~/.ssh/id_rsa.pub
+        select all lines of the output with your mouse, right click and select copy
+        ( might be 5 line looking like : ssh-rsa AAAAB3NzaC1yc2E.....Ibe3na88USFc= root@pi41.home )
+        now in the toon terminal where you are in the .ssh folder add the paste buffer to authorized keys :
+        - echo "<right mouse click and paste>" >> authorized_keys
+        like : echo "ssh-rsa AAAAB3NzaC1yc2E.....Ibe3na88USFc= root@pi41.home" >> authorized_keys
+        I did the test in D again and it worked :-)
 
- Note on the actions above :
-    During first ssh action you may need to accept the remote key.
-    Next time you just use the ssh command and get the response you want.
+        However....
+        
+        I had this issue on laptop running Ubuntu 22.04.1 LTS.
+        I still needed to enter a password. So in my ~/.ssh folder I created a file named config
+        and put in the next two lines and save the file :
+HostKeyAlgorithms ssh-rsa
+PubkeyAcceptedKeyTypes ssh-rsa
+
+        And later, on my laptop, I had this issue with github and added something more :
+HostKeyAlgorithms ssh-rsa,ssh-ed25519
+PubkeyAcceptedKeyTypes ssh-rsa,ssh-ed25519
+
+    
+Note on the actions above :
     You can use this to any host you want to enable passwordless ssh/rsync/sftp/... to.
 
 --- 2) Copy reporting script to Toon.
+
+Okay, now you have passwordless access and are ready to put the reporting script in place and use it.
 
   A) Copy file to Toon ( change ToonIPAddress to your Toon IP address ) :
         sudo rcp /home/pi/domoticz/plugins/ToonMonitor/toon-performance.sh root@ToonIPAddress:toon-performance.sh
@@ -165,7 +199,7 @@
  # openssl version
  OpenSSL 1.0.2p  14 Aug 2018
 
- Newer fw versions (with openssl 1.0.2h) will need r3, older ones use r0.
+ Newer fw versions with openssl 1.0.2h and later will need r3, older ones use r0.
 
 ---- Method 1 ( if it does not work use Method 2 )
 
@@ -183,7 +217,7 @@
 
  Start web browser for http://files.domoticaforum.eu/index.php?cam=
 
- Select : Toon > ipkg > qb2
+ Scroll down to the bottom of the page and select : Toon > ipkg > qb2
 
  Depending on your fw version download the file you need for r0 or r3 :
 
@@ -232,42 +266,23 @@ For Toon 2 : # x11vnc -storepasswd
 
 ---- Configure firewall
 
- You may read on on just skip to the next #
+ You need to put the next line :
+  -A HCB-INPUT -p tcp -m tcp --dport 5900 --tcp-flags SYN,RST,ACK SYN -j ACCEPT
+ in the file /etc/default/iptables.conf
+ 
+ You may use a tool like FileZilla to edit or use the instructions on joe below
 
- Now x11vnc is installed and configured you need to allow access in the firewall.
- The rules are in /etc/default/iptables.conf so you need to edit that file some way.
- You can read the text below and use any tool to get this done or just do it like this.
- The editor in Toon is joe.
+ # joe /etc/default/iptables.conf
+ press arrow down until you are on the beginning of the line below the --dport 22
+ press enter and enter the line with --dport 5900 like below :
 
- When editing with joe you get help by pressing and holding Ctrl followed by KH where joe notes this as ^KH 
- A copy of the help info of Toon is below.
- (The most important commands are ^KX for exit and save and ^C for exit without save)
 
-   Help Screen    turn off with ^KH    more help with ESC . (^[.)
- CURSOR           GO TO            BLOCK      DELETE   MISC         EXIT
- ^B left ^F right ^U  prev. screen ^KB begin  ^D char. ^KJ reformat ^KX save
- ^P up   ^N down  ^V  next screen  ^KK end    ^Y line  ^T  options  ^C  abort
- ^Z previous word ^A  beg. of line ^KM move   ^W >word ^R  refresh  ^KZ shell
- ^X next word     ^E  end of line  ^KC copy   ^O word< ^@  insert   FILE
- SEARCH           ^KU top of file  ^KW file   ^J >line SPELL        ^KE edit
- ^KF find text    ^KV end of file  ^KY delete ^_ undo  ^[N word     ^KR insert
- ^L  find next    ^KL to line No.  ^K/ filter ^^ redo  ^[L file     ^KD save
-    I    x.x                          Row 1    Col 1    8:03  Ctrl-K H for help
-
- Hitting ^KH again closes the help
-
- Now use arrow keys to scroll down, and enter to open a line to insert the next line in /etc/default/iptables.conf :
- -A HCB-INPUT -p tcp -m tcp --dport 5900 --tcp-flags SYN,RST,ACK SYN -j ACCEPT
-
- Add a line for port 5900 like # joe /etc/default/iptables.conf
- :
- :
  -A HCB-INPUT -p tcp -m tcp --dport 22 --tcp-flags SYN,RST,ACK SYN -j ACCEPT
  -A HCB-INPUT -p tcp -m tcp --dport 5900 --tcp-flags SYN,RST,ACK SYN -j ACCEPT
  -A HCB-INPUT -p tcp -m tcp --dport 10080 --tcp-flags SYN,RST,ACK SYN -j ACCEPT
- :
- :
- ^KX
+
+ to save the file press Ctrl-KX
+
  File /etc/default/iptables.conf saved.
 
 ---- Activate firewall rules
@@ -280,7 +295,7 @@ For Toon 2 : # x11vnc -storepasswd
 
  # init 6
 
- After reboot there is an Eneco message on Toon which I think was caused by opening the vpn.
+ After reboot there was an Eneco message on my Toon which I think was caused by opening the vpn.
 
 ---- start x11vnc
 
@@ -304,6 +319,17 @@ For Toon 2 : # killall x11vnc
 
 For Toon 1 : # ps | grep x11vnc
 For Toon 2 : # ps -ef | grep x11vnc
+
+---- VNC Client Linux
+
+ Install the TigerVNC which is available for your distribution. I use Lubuntu with xfce and it was in my Discover tool.
+
+ I copied /root/.vnc/passwd from Toon to my home folder on my linux laptop where I installed tigervncviewer.
+ Now I can use the next command to start tigervnc and it will access toon without me having to enter the vnc password.
+
+ /usr/bin/xtigervncviewer -passwd /home/jack/passwd toon-ip-address
+
+ I use the same VNC password on all my Toons so I have only 1 passwd file in my home folder which works for all of them.
 
 ---- VNC Client Windows
 
@@ -357,34 +383,10 @@ For Toon 2 : # ps -ef | grep x11vnc
 
  # ls -l /usr/lib/openssh/sftp-server
  
----- Setup as an always running server
+---- Use sftp
 
- I did this since Toon 2 has enough power to run it.
+ There is no need to create a seperate entry in /etc/inittab or in the /etc/rc* directories
+ dropbear was installed during rooting and dropbear will start an sftp server when needed
+ Just use FileZilla or any other sftp client to access your Toon.
 
- # joe /etc/inittab
-
- Add the next line
- sftp:5:respawn:/usr/lib/openssh/sftp-server >/dev/null 2>&1
-
- so the file looks like :
-
-    :
-    :
-    :
-    #ovpn:235:respawn:/usr/sbin/openvpn --config /etc/openvpn/vpn.conf --verb 0 >/dev/null 2>&1
-
-    sftp:5:respawn:/usr/lib/openssh/sftp-server >/dev/null 2>&1
-
-    # WARNING: auto-managed by '/etc/init.d/HCBv2 inittabwrap' with '/HCBv2/etc/start.d/*'
-    :
-    :
-    :
- ^KX
-
- and the file is saved.
- 
- Reboot and sftp access should work
- 
- # init 6
-  
 ----------------------------------------------------------------------
