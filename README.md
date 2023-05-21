@@ -71,7 +71,7 @@ However, you may want more ( or less ;-) ) ......which is documented in ToonMoni
 
 In ToonMonitor.conf you find how to add/remove/change sensors.
 
-In Installing.txt you find how to install VNC on Toon 1/Toon 2 and SFTP on Toon 2 if you want that.
+In Installing.txt you find how to install VNC and sftp on Toon if you want that.
 VNC Clients known to work are TigerVNC Viewer on Windows and Linux and bVNC Free on Android.
 Other working VNC clients may be available but not all work with Toon.
 
