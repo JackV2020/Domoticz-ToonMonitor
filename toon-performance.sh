@@ -60,7 +60,23 @@ echo $UPTIME $INBYTES $OUTBYTES > $NETADMINFILE
 # oepie-loepie gave me the bxt command to get wireless info. Output turned out to be in the error device so we need output from 2
 /qmf/bin/bxt -d :hcb_netcon -s NetworkInformation -n GetWirelessNetworkInformation > /dev/null 2>/var/volatile/tmp/get_dBm.txt
 # the next gets the value.
-echo wifidb `grep -i -e '<signal' /var/volatile/tmp/get_dBm.txt | cut -d ">" -f 2 | cut -d " " -f 1`
-#
+wifidb=$(grep -i -e '<signal' /var/volatile/tmp/get_dBm.txt | cut -d ">" -f 2 | cut -d " " -f 1)
+if [ "$wifidb" == "" ]
+then
+    wifidb=0
+fi
+echo wifidb $wifidb
+# memory used by qt-gui on Toon 1
+MB=$(ps | grep qt-gui | grep -v grep | tr -s " " | cut -d " " -f 3 | sed "s/m//g")
+if [ "$MB" == "root" ]
+then
+    MB=$(ps | grep qt-gui | grep -v grep | tr -s " " | cut -d " " -f 4 | sed "s/m//g")
+fi
+if [ $MB -gt 500 ]
+then
+    MB=$( expr $MB / 1000 )
+fi
+#MB=$(ps | grep qt-gui | grep -v grep | tr -s " " | cut -d " " -f 3 | sed "s/m//g")
+#MB=$(expr $(ps | grep qt-gui | grep -v grep | tr -s " " | cut -d " " -f 4 | sed "s/m//") % 1000)
 MB=$(echo $(grep /proc/$PID/status -e VmSize) | cut -d " " -f 2)
 echo "MB $MB"
